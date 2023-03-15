@@ -1,0 +1,8 @@
+"0","library(clariomsmousetranscriptcluster.db)
+geneSymbols <- select(clariomsmousetranscriptcluster.db, rownames(fit.main), c(""SYMBOL""))
+"
+"2","'select()' returned 1:1 mapping between keys and columns
+"
+"0","SYMBOLS<- geneSymbols$SYMBOL"
+"0","volcanoplot(fit.main, coef=1, highlight=4, names=SYMBOLS, "
+"0","            main=paste(""Genes expresados diferencialmente"", colnames(cont.matrix)[1], sep=""\n""),  xlim=c(-5,5)) "

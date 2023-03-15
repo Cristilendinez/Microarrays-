@@ -1,0 +1,781 @@
+ ---
+title: <center> "ANÁLISIS DE DATOS ÓMICOS. PEC1" </center>
+author: <center> "ROBERTO CABRIA" </center>
+date: <center> "`r format(Sys.time(), '%d %B, %Y')`" </center>
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    keep_tex: true
+    fig_caption: yes
+    toc_float: yes
+mainfont: Calibri
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r setup, include=FALSE}
+library(knitr)
+library(kableExtra)
+library(printr)
+library(tinytex)
+library(rstudioapi)
+knitr::opts_chunk$set(echo = FALSE, include = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 3, fig.pos = 'H')
+```
+
+# RESUMEN
+ 
+El síndrome de Turner (TS) es uno de los trastornos más comunes de aneuploidía del cromosoma X en mujeres, en el cual el cariotipo predominante es 45x, la pérdida completa del segundo cromosoma sexual. En base al origen parental del cromosoma X, los pacientes con 45x pueden calsificarse en: 45Xm y 45Xp, con cromosoma heredado materno y paterno respectivamente. Se ha observado que ambos fenotios se asociación diversos problemas, tales como la prevalencia de enfermedades cardiovasculares.
+
+# OBJETIVOS
+
+El objeto del presente análisis es estudiar el impacto del cromosoma X de los padres en el síndrome de Turner. Para ello, se analiza la expresión génica diferencial en PBMC de 45Xm y de 45Xp mediante microarrays. Así mismo, se analiza también la expresión génica en mujeres normales 46XX con el fin de analizar los cambios en la expresión génica en todo el genoma entre pacientes con síndrome de Turner y mujeres normales. 
+
+# MATERIALES Y MÉTODOS
+
+## Software
+
+El presente análisis se realiza con el software estadístico R (https://cran.r-project.org/index.html), utilizándose la última versión disponible 4.02. La interacción con R se realiza a partir de la interfaz *RStudio* (https://www.rstudio.com/), también en su última versión (1.4.1106).
+
+El software estadístico R utiliza complementos denominados librerias, los cuales contienen las funciones necesarias para realizar unos análisis concretos. Las librerías necesarías para el presente análisis son las siguientes:
+```{r libraries, warning=FALSE, message=FALSE, echo = TRUE}
+
+# ============================================
+# Librerias de R
+# ============================================
+library(oligo)
+library(Biobase)
+library(arrayQualityMetrics)
+library(affyio)
+library(convert)
+library(pvca)
+library(gplots)
+library(ggplot2)
+library(ggrepel)
+library(hgu133plus2.db)
+library(genefilter)
+library(limma)
+library(annotate)
+library(ReactomePA)
+library(org.Hs.eg.db)
+library(reactome.db)
+
+```
+
+- oligo
+- Biobase
+- arrayQualityMetrics
+- affyio
+- convert
+- pvca
+- gplots
+- ggplot2
+- ggrepel
+- hgu133plus2.db
+- genefilter
+- limma
+- annotate
+- ReactomePA
+- org.Hs.eg.db
+- reactome.db
+
+Algunas de las librerias indicadas forman parte del proyecto Bioconductor  (https://www.bioconductor.org/), a partir del cual se disponen de gran varidad de librerías dedicadas al análisis de microarrays y datos ómicos. La versión de Bioconductor utilizadada, es la última disponible, la versión 3.12 (BiocManager 1.30.10)
+
+## Datos
+
+Los datos a partir de los cuales se realiza el presente análisis se encuentra disponibles en el repositorio [Gene Expression Omnibus](https://www.ncbi.nlm.nih.gov/sites/GDSbrowser), donde pueden ser identificados con el número de acceso: ***GSE46687***.
+
+Desde el repositorio se pueden obtener los resultados de 36 pacientes, en archivos con formato *.CEL*, de los cuales se selección aleatoriamente la mitad de los pacientes de cada uno de los cariotipos objeto de análisis. Cabe mencionar, que se cuenta con tres cariotipos en base al origen del cromosoma X:
+
+- **45Xm:**Origen materno del cromosoma X unitario
+- **45Xp:**Origen paterno del cromosoma X unitario
+- **46XX:**Cuanto con ambos cromosomas X, uno materno y uno paterno
+
+```{r set-directory}
+
+# ============================================
+# Configuración del directorio de trabajo
+# ============================================
+
+setwd(".")
+dir.create("data")
+dir.create("results")
+
+```
+
+```{r selection}
+
+# ============================================
+# Definición de función para la selección de muestras
+# ============================================
+
+selectSamples<- function (myID) {
+  set.seed(myID)
+  selected <- c(sample(1:10, 6),11, sample(12:26, 5), sample(27:36, 6))
+  selected <- sort(selected)
+}
+
+```
+
+```{r targets, results = "hide"}
+
+# ============================================
+# Carga del archivo targets y selección de muestras
+# ============================================
+
+mySelected <- selectSamples(1083730)
+targetsAll <- read.csv2(file="./data/targetsAll.csv", header = TRUE, sep = ",")
+targets <- targetsAll[mySelected,]
+
+```
+
+```{r CEL-files,  results = "hide"}
+
+# ============================================
+# Lectura de los archivos *.CEL*
+# ============================================
+
+celFiles <- list.celfiles("./data", full.names = TRUE)
+
+```
+
+```{r Dates,  include = TRUE, fig.align='center'}
+
+# ============================================
+# Añadido de las fechas a targets para estudio del efecto Batch
+# ============================================
+dates <- as.data.frame(get.celfile.dates(celFiles))
+colnames(dates) <- "date"
+targets.data <- cbind(targets, dates)
+write.csv(x = targets.data, file = file.path("./data", "targets.csv"))
+targets.fecha <- read.csv2(file="./data/targets.csv", header = TRUE, sep = ",")
+
+# Muestra en una tabla de los datos de targets 
+knitr::kable(targets.data, booktabs = TRUE,
+             caption = "TABLA 1. Archivos 'celltype' asociados a cada cariotipo",) %>% 
+  kable_styling(latex_options = "HOLD_position")
+
+```
+
+```{r Raw-Data,  results = "hide"}
+
+# ============================================
+# Relación de los archivos *.CEL* con targets
+# ============================================
+
+my.targets <- read.AnnotatedDataFrame(file.path("./data", "targets.csv"),
+                                      header = TRUE, row.names = 1, sep =",")
+rawData <- read.celfiles(celFiles, phenoData = my.targets)
+
+```
+
+```{r shortnaming}
+
+# ============================================
+# Cambiar nombre largo por nombre abreviado
+# ============================================
+
+my.targets@data$ShortName -> rownames(pData(rawData))
+colnames(rawData) <- rownames(pData(rawData))
+
+```
+
+El presente estudio analiza si exite una expresión diferenciada de los genes en mujeres con síndrome de Turner y mujeres normales. Para ello, se realiza una selección aleatoria de entre los datos de origen, de tal forma que se seleccionan la mitas de las pacientes para cada uno de los cariotipos objeto de análisis. Por tanto, se analizan los datos de 6 mujeres normales, 6 mujeres con el cariotipo 45Xm y 6 mujeres con el cariotipo 45Xp.  
+
+El análisis de expresión génica se realiza mediante el Genechip Affymetrix  Human Genome U133 Plus 2.0 Array, el cual se considera una de las matrices más completas de la expresión del genoma humano completo. Los beneficios que ofrece el uso de este Genechip son:
+
+- Vista mejorar de one-array
+- Cobertura completa del conjunto del genoma humano U133 con más de 6.500 genes adicionales para el análisis de más de 47.000 transcripciones.
+- Utiliza la potencia del conjunto de sondad para obtener múltiples mediciones independientes para cada uno de los transcriptos, brindando una mayor precisión y reproductibilidad en cualquier plataforma de microarrays.
+- Sistema Genchip: datos más completos, conocimientos más previsos, mejores decisiones.
+
+## Métodos
+
+La evaluación de los datos se inicia mediante una evaluación de la calidad de los datos, para lo cual se utiliza la libreria *ArrayQualityMetric, a partir de la cual se relizan una serie de evaluaciones que proporcionan una evaluación resumida de la calidad de los datos. Así mismo, se puede ver la calidad de los datos mediante representaciones gráficas como el boxplot o median un análisis de componentes principales (PCA).
+
+El siguiente paso consiste en la normalización de los datos mediante el método de "Robust Multichip Analysis". Mediante la normalización se busca que las diferencias de intensidad presentes en los arrays reflejen la expresión diferencial de los genes en lugar de sesgos artificiales por problemas tecnológicos. Al igual que con los datos brutos, se comprueba la calidad de los datos normalizados. 
+
+```{r pasos-analisis, fig.cap="FIGURA 1. Pasos del análisis", include = TRUE, out.width="50%", fig.align='center'}
+
+knitr::include_graphics("./figures/AnalisisMicroarrays.jpg")
+
+```
+
+```{r Quality-control, eval = FALSE}
+
+# ============================================
+# Control de calidad de los datos brutos
+# ============================================
+
+# funcion array qualitymetrics para datos brutos
+arrayQualityMetrics(rawData, outdir = file.path("./results", "QCDir.Raw"), force=TRUE)
+
+```
+
+```{r QC-PCA-function}
+
+# Definición de la funcion para hacer PCA
+plotPCA3 <- function (datos, labels, factor, title, scale,colores, size = 1.5, glineas = 0.25) {
+   data <- prcomp(t(datos),scale=scale)
+   # plot adjustments
+   dataDf <- data.frame(data$x)
+   Group <- factor
+   loads <- round(data$sdev^2/sum(data$sdev^2)*100,1)
+   # main plot
+   p1 <- ggplot(dataDf,aes(x=PC1, y=PC2)) +
+     theme_classic() +
+     geom_hline(yintercept = 0, color = "gray70") +
+     geom_vline(xintercept = 0, color = "gray70") +
+     geom_point(aes(color = Group), alpha = 0.55, size = 3) +
+     coord_cartesian(xlim = c(min(data$x[,1])-5,max(data$x[,1])+5)) +
+     scale_fill_discrete(name = "Group")
+   # avoiding labels superposition
+   p1 + geom_text_repel(aes(y = PC2 + 0.25, label = labels),
+                        segment.size = 0.25, size = size) + 
+     labs(x = c(paste("PC1",loads[1],"%")),y=c(paste("PC2",loads[2],"%"))) +  
+     ggtitle(paste("Análisis componentes principales para: ",title,sep=" "))+ 
+     theme(plot.title = element_text(hjust = 0.5)) +
+     scale_color_manual(values=colores)
+}
+
+```
+
+```{r QC-PCA-graph, eval=FALSE}
+
+# Gráfico del PCA de los datos brutos
+plotPCA3(exprs(rawData), labels = targets$title, factor = targets$karyotype,
+         title = "Datos Brutos", scale = FALSE, size = 3,
+         colores = c("red", "blue", "green"))
+
+```
+
+```{r QC-boxplot, eval=FALSE}
+
+# Gráfico boxplot de los datos brutos
+boxplot(rawData, cex.axis = 0.5, las = 2, which = "all", col = c(rep("red", 6), rep("blue", 6), rep("green", 6)))
+
+```
+
+```{r Data-normalization, results = "hide"}
+
+# ============================================
+# Normalización de datos (RMA)
+# ============================================
+
+eset_rma <- rma(rawData)
+
+```
+
+```{r QC-normalized-data, eval = FALSE}
+
+# ============================================
+# Control de calidad de datos normalizados
+# ============================================
+
+# funcion arrayqualitymetric para datos normalizados
+arrayQualityMetrics(eset_rma, outdir = file.path("./results", "QCDir.Norm"), force=TRUE)
+
+```
+
+```{r QC-PCA-normalized, eval=FALSE}
+
+# Gráfico del PCA de los datos normalizados
+plotPCA3(exprs(eset_rma), labels = targets$title, factor = targets$karyotype,
+         title = "Datos Normalizados", scale = FALSE, size = 3,
+         colores = c("red", "blue", "green"))
+
+```
+
+```{r QC-boxplot-normalized, eval=FALSE}
+
+# Gráfico boxplot de los datos normalizados
+boxplot(eset_rma, cex.axis = 0.5, las = 2, which = "all", col = c(rep("red", 6), rep("blue", 6), rep("green", 6)))
+
+```
+
+El siguiente paso a dar, es la detección de los genes más variables.El procedicmiento consiste en filtrar y seleccionar los genes con mayor variabilidad, de tal forma que al realizar las pruebas estadísticas se obtenga que ajustar a un menor número de comparaciones. Para la selección de los genes se escoge un umbral de variabilidad del 75%, seleccionando aquellos genes a partir del 75% de variabilidad.
+
+El siguiente gráfico muestra las desviaciones estándar de todos los gene sordenados de menor a mayor valor. El gráfico muestra que los genes más variables son aquellos con una desviación estándar por encima del 90-95% de todas las desviaciones estándar. 
+
+```{r most-variable-genes, fig.cap= "FIGURA 2. Distribución de la variabilidad para todos los genes. Las líneas verticales indican los percentiles: 75%, 90% y 95%.", include=TRUE, fig.align='center'}
+
+# ============================================
+# Filtración de genes según a la variabilidad
+# ============================================
+
+# Gráfica determinación del umbral de variabilidad
+sds <- apply (exprs(eset_rma), 1, sd)
+sdsO<- sort(sds)
+plot(1:length(sdsO), sdsO, main="Distribución de la variabilidad de todos los genes", xlab="Genes indexados de menor a mayor variabilidad", ylab="Desviación estándar")
+abline(v=length(sds)*c(0.75,0.9,0.95))
+
+```
+
+```{r filter-least-variable}
+
+# Anotación
+annotation(eset_rma) <- "hgu133plus2.db"
+
+# filtrar genes con menos de 75%
+filtered <- nsFilter(eset_rma, 
+                     require.entrez = TRUE, remove.dupEntrez = TRUE,
+                     var.filter = TRUE, var.func = IQR, var.cutoff = 0.75,
+                     filterByQuantile = TRUE, feature.exclude = "^AFFX")
+
+eset_filtered <- filtered$eset
+
+```
+
+```{r save-data}
+
+# ============================================
+# Guardado de datos normalizados y filtrados
+# ============================================
+write.csv(exprs(eset_rma), file="./results/normalized.Data.csv")
+write.csv(exprs(eset_filtered), file="./results/normalized.Filtered.Data.csv")
+save(eset_rma, eset_filtered, file="./results/normalized.Data.Rda")
+
+```
+
+La evaluación estadística de si hay genes expresados diferencialmente se realiza mediante un Modelo Lineal para Microarrays, el cual, se puede realizar desde el paquete *limma* de *Bioconductor*. El primer paso es definir una matriz de diseño experimental, a partir de la cual se describe la designación de cada una de las muestra a un grupo, y una matriz de contraste, la cual describe las comparaciones entre los distintos grupos.
+
+En el presente experimento se cuenta con 3 grupos definidos en base a los cariotipos: 46XX, 45Xm y 45xp. Por lo que se realizan comparaciones entre los 3 grupos de tal forma que lo que se quiere comparar es: 46XX vs 45Xm, 46XX vs 45Xp y 45Xp vs 45Xm.
+
+En la estimación del modelo lineal se realiza un control de falsos positivos mediante el método de de Benjamini y Hochberg, el cual consiste en un ajuste del p_valor.
+
+```{r matrixes}
+
+# ============================================
+# Modelo lineal para MicroArrays
+# ============================================
+
+if (!exists("eset_filtered")) load (file="./results/normalized.Data.Rda")
+
+# Definición de la matriz de diseño
+designMat<- model.matrix(~0+targets$karyotype, pData(eset_filtered))
+colnames(designMat) <- c("Normal", "Materno", "Paterno")
+
+# Definición de la matriz de contraste
+cont.matrix <- makeContrasts (Normal_vs_Materno = Normal-Materno,
+                              Normal_vs_Paterno = Normal-Paterno,
+                              Paterno_vs_Materno = Paterno-Materno,
+                              levels=designMat)
+
+# Ajuste del modelo
+fit<-lmFit(eset_filtered, designMat)
+fit.main<-contrasts.fit(fit, cont.matrix)
+fit.main<-eBayes(fit.main)
+
+```
+
+Mediante la función *topTable()* del paquete *limma* se obtiene, para una lista de genes ordenador del p_valor menor al mayor (considerados de más a menos diferencialmente expresados), las siguientes estadísticas:
+
+- logFC: La diferencia de medias para cada grupo.
+-AveExpr: Expresión media de todos los genes en la comparación.
+- t : Moderated t-statistic (parecido al t-test).
+- P.Value: Test p–value.
+- adj.P.Val: p–valor ajustado siguiendo el método de Benjamini
+- B-estadístico: Posibilidades logarítmicas posteriores del gen expresado frente a no ser expresado diferencialmente.
+
+```{r genes-list}
+
+# ============================================
+# Listas ordenadas de genes de menor a mayor pvalor
+# ============================================
+
+#Comparación Normal vs Materno
+topTab_NvsM <- topTable(fit.main, number = nrow(fit.main), coef = "Normal_vs_Materno", adjust = "fdr")
+
+# Comparación Normal vs Paterno
+topTab_NvsP <- topTable(fit.main, number = nrow(fit.main), coef = "Normal_vs_Paterno", adjust = "fdr")
+
+#Comparación Paterno vs Materno
+topTab_PvsM <- topTable(fit.main, number = nrow(fit.main), coef = "Paterno_vs_Materno", adjust = "fdr")
+
+```
+
+Obtenidas las listas de genes ordenadas de mayor a menor diferencia de expresión, se realiza la anotación de genes. Este procedimiento relaciona los genes con sus funciones y, por tanto, permite dar una interpretación biológica. A partir del resultado obtenido de la anotación, se pueden realizar diversas representaciones gráficas que permiten visualizar como los genes se diferencian por grupo. 
+
+Por último, se realiza un análisis de significación biológica mediante la aproximación estadística *Gene Set Analysis*, para lo que se utilizaran las funciones del paquete [ReactomePA](https://reactome.org).
+
+```{r Gene-annotation-function}
+
+# ============================================
+# Anotación de genes
+# ============================================
+
+# Función para la anotación
+annotatedTopTable <- function(topTab, anotPackage)
+ {
+   topTab <- cbind(PROBEID=rownames(topTab), topTab)
+   myProbes <- rownames(topTab)
+   thePackage <- eval(parse(text = anotPackage))
+   geneAnots <- select(thePackage, myProbes, c("SYMBOL", "ENTREZID", "GENENAME"))
+   annotatedTopTab<- merge(x=geneAnots, y=topTab, by.x="PROBEID", by.y="PROBEID")
+ return(annotatedTopTab)
+}
+
+# Anotar genes Normal vs Materno
+Annotated_NvsM <- annotatedTopTable(topTab_NvsM, anotPackage = "hgu133plus2.db")
+
+write.csv(Annotated_NvsM, file = "./results/Annotated_NvsM.csv")
+
+# Anotar genes Normal vs Paterno
+Annotated_NvsP <- annotatedTopTable(topTab_NvsP, anotPackage = "hgu133plus2.db")
+
+write.csv(Annotated_NvsP, file = "./results/Annotated_NvsP.csv")
+
+# Anotar genes Paterno vs Materno
+Annotated_PvsM <- annotatedTopTable(topTab_PvsM, anotPackage = "hgu133plus2.db")
+
+write.csv(Annotated_PvsM, file = "./results/Annotated_PvsM.csv")
+
+```
+
+# RESULTADO
+
+## Calidad, normalización y filtrado no específico
+
+La exploración de la calidad de los datos brutos emplea 3 métodos distintos de outliers, los cuales en el archivo de salida obtenido se representan en columans diferentes. Los métodos empleados son:
+
+1. Distancia entre arrays
+2. Boxplot
+3. MA plots
+
+En la figura se muestra a continuación, se muestran los resultados obtenidos para los datos brutos (izquierda) y los datos normalizados (derecha). Puede observarseque en los datos brutos se obtienen 3 outliers mediante el método 1, y 13 outliers con el método 3. La presencia de estos outliers hace recomendable realizar la normalización, a partir de la cual, se puede ver que no se obtienen outliers.
+
+```{r QualitySummary-Raw, fig.cap="TABLA 2. Resultados de detección de outliers. Izquierda: datos en bruto. Derecha: datos normalizados", include = TRUE, fig.show="hold", out.width="50%", fig.align='center', fig.pos='H'}
+
+# graficas de outliers del analisis de calidad
+knitr::include_graphics("./figures/QualityRaw.jpg")
+knitr::include_graphics("./figures/QualityNorm.jpg")
+
+```
+
+A continuación, se realiza una PCA y se representan las dos primeras componentes principales. Se observa que la primera componente explica el 88% de la variabilidad, esta se encuentra claramente influenciada por la fecha del análisis, ya que a un lado se tienen las muestras de 2005-2006 y, en el otro lado, las muestras de 2008. A partir de las dos componentes principales se observan agrupadas las mujeres con cariotipo normal.Esta influencia de la fecha de análisis, puede ser indicativo de la presencia de efecto Batch en los datos, es decir, los datos podrían verse afectados por diferencias minúsculas de variables no biológicas.
+
+```{r quality-raw-PCA, include = TRUE, fig.cap="FIGURA 3. Gráfica de componentes principales de los datos brutos.", fig.align='center', fig.pos='H'}
+
+# Gráfico del PCA de los datos brutos
+plotPCA3(exprs(rawData), labels = targets$title, factor = targets$karyotype,
+         title = "Brutos", scale = FALSE, size = 3,
+         colores = c("red", "blue", "green"))
+
+```
+
+Mediante el boxplot puede visualizarse la intensidad de los arrays, pudiendo ver que en los tres grupos objeto de análisis se observa una alta variabilidad entre las muestras.
+
+```{r quality-raw-boxplot, include = TRUE, fig.cap="FIGURA 4. Gráfica boxplot de los datos brutos.", fig.align='center', fig.pos='H'}
+
+# Gráfico boxplot de los datos brutos
+boxplot(rawData, cex.axis = 0.5, las = 2, which = "all", col = c(rep("red", 6), rep("blue", 6), rep("green", 6)))
+
+```
+
+La normalización de los datos crudos permite obtener una agrupación diferenciada de la obtenida previamente. La segunda componente, que explica un 12,5% de la variabilidad, es la que permite agrupar las muestras en dos grupos, por un lado las mujeres normales y por otro las mujeres con TS, observándose un posible outlier en la mujer Xm_rep1.
+A partir de la normalización, la influencia de la fecha de análisis parace perder importancia, no pudiendo determinarse una agrupación tan evidente como en el caso de los datos crudos.Por tanto, en el presente estudio se descarta el análisis del efecto Batch, si bien, no se descarta su posible influencia a tenor del análisis de los datos crudos.
+
+```{r quality-normalized-PCA, include = TRUE, fig.cap="FIGURA 5. Gráfica de componentes principales de los datos normalizados", fig.align='center', fig.pos='H'}
+
+# Gráfico del PCA de los datos normalizados
+plotPCA3(exprs(eset_rma), labels = targets$title, factor = targets$karyotype,
+         title = "Normalizados", scale = FALSE, size = 3,
+         colores = c("red", "blue", "green"))
+
+```
+
+Tras la normalización, la PCA da la sensación de mantener outliers, si bien, en base a los resultados de la calidad de los datos, se concluye la no existencia de outiliers y, por tanto, no se precisan más análisis de outliers.Por su parte, se puede observar mediante un gráfico boxplot como la variabilidad se ha visto reducida respecto a los datos brutos.
+
+```{r quality-normalized-boxplot, include = TRUE, fig.cap="FIGURA 6.Gráfica boxplot de los datos normalizados", fig.align='center', fig.pos='H'}
+
+# Gráfico boxplot de los datos normalizados
+boxplot(eset_rma, cex.axis = 0.5, las = 2, which = "all", col = c(rep("red", 6), rep("blue", 6), rep("green", 6)))
+
+```
+
+Originalmente, la base de datos tenía `r dim(exprs(eset_rma))[1]`. Al filtrar los genes con menos de un 75% de variabilidad obtenemos una base de datos de `r dim(exprs(eset_filtered))[1]` genes.
+
+## Modelo lineal y visualización de resultados
+
+El modelo lineal permite comprobar que estadísticamente existe una expresión diferenciada de los genes entre los tres cariotipos estudiados. A partir del modelo lineal se obtiene una lista de genes con los resultados de las pruebas estadísticas. Al ordenar de menor a mayor p_valor se asume que cuanto menor es el p_valor, mayor es la diferenciación de ese gen, pudiendo así identificar los más diferenciados.
+
+A continuación, se muestran los resultados obtenidos de los genes más diferencidos en cada una de las 3 comparaciones realizadas,pudiendo visualizar mediante un *volcanoplot* que genes se han diferenciado más, tanto negativa como positivamente. 
+
+```{r gene-list-view, include = TRUE}
+
+# tabla de genes ordenados de Normal vs Materno
+knitr::kable(head(topTab_NvsM), booktabs = TRUE, caption = "TABLA 3. Encabezado de la lista de genes con cambio de expresión entre Normal y Materno") %>% kable_styling(latex_options = "HOLD_position")
+
+```
+
+```{r volcano-plot, fig.cap=" FIGURA 7. Gráfica en volcán. Identificados los genes que se diferencian más - Normal vs Materno.", include=TRUE, fig.pos="H", fig.align='center'}
+
+# ============================================
+# Volcano plot Normal vs Materno
+# ============================================
+
+geneSymbols <- select(hgu133plus2.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=1, highlight=4, names=SYMBOLS, 
+             main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[1], sep="\n"))
+   abline(v=c(-1,1))
+   
+```
+
+En la comparativa Normal vs Materno, de los genes regulados negativamente, el que se expresa de una forma más diferente es PECAM1 Parece que los genes regulados positivamente, tienen una diferenciación mayor, y en este caso los más diferenciados serían ANK3, LOC28378 y POM7P3. 
+
+```{r gene-list-view2, include = TRUE}
+
+# tabla de genes ordenados de Normal vs Paterno
+knitr::kable(head(topTab_NvsP), booktabs = TRUE, caption = "TABLA 4. Encabezado de la lista de genes con cambio de expresión entre Normal y Paterno") %>% kable_styling(latex_options = "HOLD_position")
+
+```
+
+```{r volcano-plot2, fig.cap="FIGURA 8. Gráfica en volcán. Identificados los genes que se diferencian más - Normal vs Paterno.", include=TRUE, fig.pos="H", fig.align='center'}
+
+# ============================================
+# Volcano plot Normal vs Paterno
+# ============================================
+
+geneSymbols <- select(hgu133plus2.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=2, highlight=4, names=SYMBOLS, 
+             main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[2], sep="\n"))
+   abline(v=c(-1,1))
+   
+```
+
+En la comparativa Normal vs Paterno, los genes más diferenciados se encuentran regulados negativamente, siendo el gen XIST el que tiene mayor significación, seguido de los genes ADORE3 y KDM6A.
+
+```{r gene-list-view3, include = TRUE}
+
+# tabla de genes ordenados de Paterno vs Materno
+knitr::kable(head(topTab_PvsM), booktabs = TRUE, caption = "TABLA 5. Encabezado de la lista de genes con cambio de expresión entre Paterno y Materno") %>% kable_styling(latex_options = "HOLD_position")
+
+```
+
+```{r volcano-plot3, fig.cap="FIGURA 9. Gráfica en volcán. Identificados los genes que se diferencian más - Paterno vs Materno.", include=TRUE, fig.pos="H", fig.align='center'}
+
+# ============================================
+# Volcano plot Paterno vs Materno
+# ============================================
+
+geneSymbols <- select(hgu133plus2.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=3, highlight=6, names=SYMBOLS, 
+             main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[3], sep="\n"))
+   abline(v=c(-1,1))
+   
+```
+
+En la comparativa Paterno vs Materno, los genes más diferenciados se encuentran regulados postivamente, siendo el gen XIST el que tiene mayor significación, seguido de los genes KDM6A y SLC25A6.
+
+Las dos comparativas realizadas con el cariotipo 45Xp presentan como gen más de mayor significación el gen XIST, si bien, en la comparativa con el normal se encuentra regulado negativamente y en la materna positivamente. Caso similar ocurre con el ge KDM6A y, una situción inversa, con el gen AFDN.
+
+En la siguiente tabla se pueden observarse los genes que han sido expresados diferencialmente para cada una de las comparaciones realizadas. Además, mediante un diagrama de Venn se pueden visualizar cuantos de estos genes comparten un o más selecciones.
+
+```{r contar-genes-diferenciados, include=TRUE}
+
+# ============================================
+# Contar cuantos genes se han diferenciado: negativa y positivamente
+# ============================================
+
+res<-decideTests(fit.main, method="separate", adjust.method="fdr", p.value=0.1, lfc=1)
+
+sum.res.rows <- apply(abs(res), 1, sum)
+res.selected <- res[sum.res.rows != 0,]
+
+knitr::kable(summary(res), booktabs = TRUE, caption = "TABLA 6. Número de genes diferenciados negativa (Down) y positivamente (Up), y no diferenciados") %>% kable_styling(latex_options = "HOLD_position")
+
+```
+
+```{r diagrama-venn, fig.cap="FIGURA 10. Diagram de Venn. Genes en común entre las 3 comparaciones, selección de genes con FDR<0.1 y logFC>1.", include=TRUE, fig.pos="H", fig.align='center'}
+
+# ============================================
+# Diagrama de Venn para visualizar los genes diferenciados
+# ============================================
+
+vennDiagram (res.selected[,1:3], cex=0.9, main=paste("Genes expresados diferencialmente"))
+
+```
+
+Los genes que se han seleccionado como expresados diferencialmente pueden visualizarse utilizando un heatmap o mapa de calor. Estos gráficos utilizan paletas de colores para resaltar valores distintos, en este caso, expresiones significativamente diferenciales positivas (regulación hacia arriba) o negativas (regulación hacia abajo).
+
+```{r heatmap, fig.cap="FIGURA 11. Heatmap diferencia de expresión. Azul: negativo. Rojo: positivo.", include=TRUE, fig.width = 6, fig.height = 6, fig.pos="H", fig.align='center'}
+
+# ============================================
+# Clustered heatmap
+# ============================================
+
+# datos para heatmap
+probesInHeatmap <- rownames(res.selected)
+HMdata <- exprs(eset_filtered)[rownames(exprs(eset_filtered)) %in% probesInHeatmap,]
+ 
+geneSymbols <- select(hgu133plus2.db, rownames(HMdata), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+rownames(HMdata) <- SYMBOLS
+write.csv(HMdata, file = file.path("./results/data4Heatmap.csv"))
+
+# paleta colores
+my_palette <- colorRampPalette(c("blue", "red"))(n = 299)
+
+# clustered heatmap
+heatmap.2(HMdata,
+           Rowv = TRUE,
+           Colv = TRUE,
+           dendrogram = "both",
+           main = "Genes expresados diferencialmente \n FDR < 0,1, logFC >=1",
+           scale = "row",
+           col = my_palette,
+           sepcolor = "white",
+           sepwidth = c(0.05,0.05),
+           cexRow = 0.5,
+           cexCol = 0.9,
+           key = TRUE,
+           keysize = 1.5,
+           density.info = "histogram",
+           ColSideColors = c(rep("red",6),rep("blue",6), rep("green", 6)),
+           tracecol = NULL,
+           srtCol = 30)
+
+```
+
+El mapa de calor con los genes de los individuos agrupados nos muestra como en el caso de las mujeres normales, la regulación de los 5040 genes analizados es similar dentro del grupo. Sin embargo, no se puede obtener la misma conclusión para las mujeres con TS, las cuales se encuentran entremezcladas y no determinada un patrón claro de diferenciación en la expresión génica que permita agruparlos en base al origen del cromosoma X.
+
+## Significación biológica
+
+```{r}
+
+# ============================================
+# Significacion biologica con reactome para Normal_vs_Paterno
+# ============================================
+
+# listas de genes identificados e incluidos en el analisis
+listOfTables <- list(Normal_vs_Paterno  = topTab_NvsP)
+listOfSelected <- list()
+for (i in 1:length(listOfTables)){
+# select the toptable
+topTab <- listOfTables[[i]]
+# select the genes to be included in the analysis
+whichGenes<-topTab["adj.P.Val"]<0.15
+ selectedIDs <- rownames(topTab)[whichGenes]
+# convert the ID to Entrez
+ EntrezIDs<- select(hgu133plus2.db, selectedIDs, c("ENTREZID"))
+ EntrezIDs <- EntrezIDs$ENTREZID
+ listOfSelected[[i]] <- EntrezIDs
+ names(listOfSelected)[i] <- names(listOfTables)[i]
+}
+
+# mapeado de genes
+mapped_genes2GO <- mappedkeys(org.Hs.egGO)
+mapped_genes2KEGG <- mappedkeys(org.Hs.egPATH)
+mapped_genes <- union(mapped_genes2GO , mapped_genes2KEGG)
+
+# reactome
+listOfData <- listOfSelected
+comparisonsNames <- names(listOfData)
+universe <- mapped_genes
+for (i in 1:length(listOfData)){
+genesIn <- listOfData[[i]]
+comparison <- comparisonsNames[i]
+enrich.result <- enrichPathway(gene = genesIn,
+                                pvalueCutoff = 0.05,
+                                readable = T,
+                                pAdjustMethod = "BH",
+                                organism = "human",
+                                universe = universe)
+cat("##################################")
+cat("\nComparison: ", comparison,"\n")
+print(head(enrich.result))
+if (length(rownames(enrich.result@result)) != 0) {
+write.csv(as.data.frame(enrich.result), 
+            file =paste0("./results/","ReactomePA.Results.",comparison,".csv"), 
+            row.names = FALSE)
+pdf(file=paste0("./results/","ReactomePABarplot.",comparison,".pdf"))
+print(barplot(enrich.result, showCategory = 15, font.size = 4, 
+           title = paste0("Reactome Pathway Analysis for ", comparison,". Barplot")))
+dev.off()
+pdf(file = paste0("./results/","ReactomePAcnetplot.",comparison,".pdf"))
+print(cnetplot(enrich.result, categorySize = "geneNum", schowCategory = 15, 
+        vertex.label.cex = 0.75))
+dev.off()
+}
+}
+
+```
+
+En base a los resultados del apartado previo, se observa que existen grupos de genes diferenciados entre los cariotipos, especialmente entre el cariotipo 46XX (Normal) y el 45Xp (Paterno). Por tanto, se realiza un análisis de conjunto de genes, a partir del cual se puede conocer si la expresión diferencial de los genes tiene relación con funciones o procesos biológicos.Los análisis de este tipo precisan de un número mínimo de genes para ser fiables, por lo que se realiza una selección menos restrictiva. 
+
+Cabe mencionar un par de aspectos relevantes en relación a este análisis. En el caso de la comparativa Normal vs Materno, no se obtuvieron genes diferenciado y, por tanto, no puede realizarse el presente análisis. Por otro lado, al realizar el análisis para la comparativa Paterno vs Materno, no se obtuvo relación alguna entre los genes diferenciados y funciones o procesos biológicos. Por tanto, únicamente los genes diferenciados de la comparativa Normal vs Paterno ofrecen significación biológica, tal y como puede verse a continuación.
+
+```{r tableReacto, include=TRUE}
+
+# Tabla con las principales funciones
+Tab.react <- read.csv2(file.path("./results/ReactomePA.Results.Normal_vs_paterno.csv"), 
+                       sep = ",", header = TRUE, row.names = 1)
+
+Tab.react <- Tab.react[1:2, 1:2]
+knitr::kable(Tab.react, booktabs = TRUE, caption = "TABLA 7. Funciones identificadas por reactome Paterno vs Materno") %>% kable_styling(latex_options = c("HOLD_position", "scale_down")) %>% 
+   column_spec(2, width = "30em")
+
+```
+
+Los resultados del análisis se obtienen a partir de estudio de 353 genes, frente a los 111 identificados previamente como diferenciales, debido a la selección menos restrictiva.Del análisis se desprende que los genes estudiados intervienen en una única función o proceso biológico, la desgranulación de neutrófilos. 
+
+```{r cnetplot, include = TRUE, fig.width = 7, fig.height=7, fig.cap="FIGURA 12. Gráfica de red mostrando la relación entre las principales funciones significativas y genes identifcados - Normal vs Paterno", fig.pos="H"}
+
+# Gráfica de redes
+cnetplot(enrich.result, categorySize = "geneNum", schowCategory = 15, 
+         vertex.label.cex = 0.75)
+
+```
+
+# DISCUCIÓN
+
+Durante del estudio de la calidad de los datos crudos, se detectan 3 outliers mediante la distancia de arrays y 13 outliers por MA plots. Además, el análisis de componentes principales permite agrupar las muestras en grupos a partir de la primera componente principal, con una explicación de la variabilidad del 88%, viéndose claramente influencia la fecha de análisis de cada una de las muestras.
+
+La influencia de la fecha de análisis se presenta como un claro síntoma de efecto Batch en los datos, es decir, los resultados de los microarrays de expresión génica pueden estar afectados por diferencia minúsculas en cualquier número de variables no biológicas, siendo muy habitual la diferencia en la fecha de procesamiento de la muestra.
+
+En el presente estudio, tras el estudio de calidad de los datos crudos, se normalizan los datos mediante el método RMA, que, aunque no es el único método, si es uno de los más utilizados. Tras la normalización, se realiza un nuevo análisis de calidad de los datos, no obteniéndose ningún outlier y, en el análisis de componentes principales, no se aprecia claramente una influencia de la fecha de análisis de las muestras, aunque si se puede observar la agrupación de las muestras en mujeres normales y mujeres con TS.
+
+Llegados a este punto, se plantea el interrogante de si es preciso o no realizar un análisis en profundidad de la existencia de efecto Bathc en los datos. Si bien, dado que a partir de la normalización se obtiene una mejora de los datos, ya que no se obtienen outliers, y que, se pierde la evidencia de la influencia de la fecha del análisis en los datos, se concluye que no es necesario realizar más análisis de la calidad de los datos. No obstante, debe tenerse en consideración de la posibilidad de la existencia de una mínima influencia de la fecha de análisis de las muestras, es decir, un posible efecto Batch en los datos.
+
+Tras la normalización de los datos, se realiza una selección de los genes que se expresan diferencialmente, ya que se espera que mediante estos genes se obtenga una diferencia notable entre los cariotipos objeto de estudio. Originalmente, la base de datos tenía `r dim(exprs(eset_rma))[1]` y, tras filtrar, se reduce a `r dim(exprs(eset_filtered))[1]` genes.
+
+Mediante un modelo lineal se comprueba que estadísticamente existen una expresión diferencial entre los 3 cariotipos. En la comparativa entre el cariotipo Normal (46XX) y el Materno (45Xm) no se detectaron genes diferenciados significativamente, mientrás que en la comparativa Normal y Paterno (45Xp) se obtuvieron 92 genes diferenciados negativamente y 19 positivamente. Por su parte, en la comparativa entre Paterno y Materno se obtuvieron 12 genes diferenciados negativamente y 50 positivamente. Cabe destacar, que de los genes detectados con expresión diferencial únicamente 41 son comunes entre las comparativas Normal vs Paterno y Paterno vs Materno, siendo el gen XIST el que presenta mayor significación, seguido de los genes KDM6A y AFDN.
+
+A partir de análisis de significancia biológica, mediante el paquete *Reactome*, únicamente se identifica una función o proceso biológico que pueda verse influenciada por los genes con expresión diferencial identificados en la comparativa entre Normal y Paterno, mientrás que en las otras dos comparativas no se obtuvieron resultados al respecto. La función identificada es la desgranulación de neutrófilos, por lo que lo que este grupo de genes tendría relación con el funcionamiento del sistemana hematológico/inmune. 
+
+En base a los resultados obtenidos en otros estudios, se observan similitudes con los resultados obtenidos en el presente análisis.  Por ejemplo, en el estudio de María Carolina Manotas et al. (2020) se identificaron 16 genes diferenciales entre pacientes con TS y con el síndrome de Klinefleter, de cuyos genes se encuentra en común con el presente estudio la expresión diferencial del gen KDM6A. 
+En Hao Want *el al.* (2020) realizan un análisis de expresión de genes entre pacientes con TS y pacientes de cariotipo normal, concluyeron que el sistema hetalogico/inmune era el que presentaba mayor enriquecimiento, resultado similar al obtenido en el presente análisis. Si bien, la bibliografía de este tipos de estudios sobre el TS no es muy extensa, aunque se pueden encontrar otros estudios que pueden llevar a una mejor comprensión génica del síndrome de Turner como en Andrew Whatmore *et al.* (2008), Francisco Álvarez y Roberto Lanes (2018), Holly Corbit *et al.* (2018) o Tze Kin Lau *et al.* (2012).
+
+# CONCLUSIÓN
+
+Los resultados obtenidos parecen ofrecer puntos en común otros estudios bioinformáticos, si bien, la bibliografía existente se presenta más bien escasa o enfocada en el ámbito tradicional de la investigación, por lo que la realización de análisis bioiformáticos en profundidad sobre el Sindrome de Turner se antojan necesarios.
+
+A la hora de hacer un análisis estadísitico de la expresión diferencial de genes debe tener en consideración que este tipo de análisis presentan diversas limitaciones y, por ende, deben de tomarse con cautela. Una parte esencial, es la incorporación de conocimiento biológico y técnico al experimento con el fin de lograr la mejor interpretación posible de los resultados. 
+
+El uso del método de Gene Set Expression Analysis para obtener una significancia biológica presenta la ventaja de incorporar más información al usar una mayor cantidad de genes, pero presenta el inconveniente de poder obtener un mayor número de falsos positivos.
+Con objeto de descartar al máximo falsos positivos, el uso complementario de otros tipos de análisis puede ayudar a minimizar este tipo de errores.
+
+# REFERENCIAS
+
+- [Andrew J. Whatmore, Leena Patel and Peter E. Clayton (2009). *A pilot study to evaluate gene expression profiles in peropheral blood mononuclear cells (PBMCs) from children eith GH deficiency and Turner syndrome in response to GH treatment.* Clinical Endocrinology; 70: 429-434. DOI: 10.11111/j.1365-2265.2008.03477.x](https://www.onlinelibrary.wiley.com/doi/abs/10.1111/j.1365-2265.2008.03477.x)
+- [Francisco Álvarez-Nava y Roberto Lanes (2018). *Epigenetics in Turner syndrome* Clinical epigenetics. DOI: 10.1186/s13148-018-0477-0](https://clinicalepigeneticsjournal.biomedcentral.com/articles/10.1186/s13148-018-0477-0)
+- [Hao Wang, Hui Zhu, Wenjiao Zhu, Yue Xu, Nan Wang, Bing Han, Huaidong Song, Kie Quiao (2020). *Bioinformatics Analysis Identifies Potential Key Genes the Pathogenesis of Turner Syndrome*. Frontiers in Endocrinology. doi:10.3389.2020.00104.](https://www.frontiersin.org/articles/10.3389/fendo.2020.00104/full)
+- [Holly Corbitt, Jacob Gutierrez, Michael Silberbach, Cheryl L.Maslen (2018). *The genetic basis of Turner syndrome aortopathy.* American Journal os medical genetics. DOI: 10.1002/amjmg.c.31686](https://onlinelibrary.wiley.com/doi/abs/10.1002/ajmg.c.31686)
+- [María Carolinna Manotas, Juan Camilo Calderón, Liliana López-Kleine, Fernando Suárez-Obando, Olga M. Moreno, Adriana Rojas (2020). *Identification of common differentially expressed genes in Turner (45,X) and Klinefelter (47,XXY) syndromes using bioinformatics analysis.* Molecular Genetics & Genomic Medicine. DOI: 10.1002/mgg3.1503](https://pubmed.ncbi.nlm.nih.gov/32959501/)
+- [Tze Kin Lau, Fang Chen, Xiaoyu Pan, Ritsuko K. Pooh, Fuman Jiang, Yihan Li, Hui Jiang, Xuchao Li, Shenpei Che & Xiuqing Zhang (2012) *Noinvasive prenatal diagnosis of common fetal chromosomal aneuploidies by maternal plasma DNA sequencing* The Journa of Maternal-Fetal and Neonatal Medicie; 25(8): 1370-1374. DOI: 10.3109/14767058.2011.635730](https://www.tandfonline.com/doi/abs/10.3109/14767058.2011.635730?journalCode=ijmf20)
+
+# ANEXO: CÓDIGO R
+
+```{r get-labels}
+labs = knitr::all_labels()
+labs = setdiff(labs, c("setup", "get-labels", "pasos-analisis", "QualitySummary-Raw", "quality-raw-PCA", "quality-raw-boxplot", "quality-normalized-boxplot", "quality-normalized-PCA", "gene-list-view", "heatmap-graph"))
+```
+
+```{r all-code, ref.label=labs, eval=FALSE, echo = TRUE,include=TRUE}
+```

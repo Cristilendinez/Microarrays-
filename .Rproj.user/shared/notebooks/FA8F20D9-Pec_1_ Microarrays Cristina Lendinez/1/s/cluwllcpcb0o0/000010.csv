@@ -1,0 +1,42 @@
+"0","listOfData <- listOfSelected[1:2]
+comparisonsNames <- names(listOfData)
+universe <- mapped_genes
+ 
+for (i in 1:length(listOfData)){
+    genesIn <- listOfData[[i]]
+    comparison <- comparisonsNames[i]
+    enrich.result <- enrichPathway(gene = genesIn,
+                                   pvalueCutoff = 0.05,
+                                   readable = T,
+                                   pAdjustMethod = ""BH"",
+                                   organism = ""mouse"",
+                                   universe = universe)
+    
+cat(""##################################"")
+cat(""\nComparison: "", comparison,""\n"")
+print(head(enrich.result))
+
+if (length(rownames(enrich.result@result)) != 0) {
+write.csv(as.data.frame(enrich.result), 
+               file =paste0(""./result/"",""ReactomePA.Results."",comparison,"".csv""), 
+               row.names = FALSE)
+    pdf(file=paste0(""./result/"",""ReactomePABarplot."",comparison,"".pdf"")) 
+    print(barplot(enrich.result, showCategory = 15, font.size = 4, 
+              title = paste0(""Reactome Pathway Analysis for "", comparison,"". Barplot"")))
+    dev.off()
+    
+    pdf(file = paste0(""./result/"",""ReactomePAcnetplot."",comparison,"".pdf""))
+      print(cnetplot(enrich.result, categorySize = ""geneNum"", schowCategory = 15,  
+                     vertex.label.cex = 0.75))
+    dev.off()
+   }
+}
+"
+"1","##################################"
+"1","
+Comparison: "
+"1"," "
+"1","FiltrovsMetformina"
+"1"," "
+"1","
+"

@@ -1,0 +1,216 @@
+"0","if (!require(BiocManager)) install.packages(""BiocManager"")
+"
+"2","Loading required package: BiocManager
+"
+"2","Bioconductor version 3.14 (BiocManager 1.30.16), R 4.1.1 (2021-08-10)
+"
+"0","installifnot <- function (pkg){"
+"0","  if (!require(pkg, character.only=T)){"
+"0","    BiocManager::install(pkg)"
+"0","  }"
+"0","}"
+"0","installifnot(""pd.mogene.1.0.st.v1"")"
+"2","Loading required package: pd.mogene.1.0.st.v1
+"
+"2","Loading required package: Biostrings
+"
+"2","Loading required package: BiocGenerics
+"
+"2","
+Attaching package: ‘BiocGenerics’
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames, dirname,
+    do.call, duplicated, eval, evalq, Filter, Find, get, grep, grepl,
+    intersect, is.unsorted, lapply, Map, mapply, match, mget, order, paste,
+    pmax, pmax.int, pmin, pmin.int, Position, rank, rbind, Reduce, rownames,
+    sapply, setdiff, sort, table, tapply, union, unique, unsplit, which.max,
+    which.min
+
+"
+"2","Loading required package: S4Vectors
+"
+"2","Loading required package: stats4
+"
+"2","
+Attaching package: ‘S4Vectors’
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    expand.grid, I, unname
+
+"
+"2","Loading required package: IRanges
+"
+"2","
+Attaching package: ‘IRanges’
+
+"
+"2","The following object is masked from ‘package:grDevices’:
+
+    windows
+
+"
+"2","Loading required package: XVector
+"
+"2","Loading required package: GenomeInfoDb
+"
+"2","
+Attaching package: ‘Biostrings’
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    strsplit
+
+"
+"2","Loading required package: RSQLite
+"
+"2","Loading required package: oligoClasses
+"
+"2","Welcome to oligoClasses version 1.56.0
+"
+"2","Loading required package: oligo
+"
+"2","Loading required package: Biobase
+"
+"2","Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with 'browseVignettes()'. To
+    cite Bioconductor, see 'citation(""Biobase"")', and for packages
+    'citation(""pkgname"")'.
+
+"
+"2","=========================================================================================
+"
+"2","Welcome to oligo version 1.58.0
+"
+"2","=========================================================================================
+"
+"2","Loading required package: DBI
+"
+"0","installifnot(""mogene10sttranscriptcluster.db"")"
+"2","Loading required package: mogene10sttranscriptcluster.db
+"
+"2","Loading required package: AnnotationDbi
+"
+"2","Loading required package: org.Mm.eg.db
+"
+"2","
+"
+"2","
+"
+"0","installifnot(""oligo"")"
+"0","installifnot(""limma"")"
+"2","Loading required package: limma
+"
+"2","
+Attaching package: ‘limma’
+
+"
+"2","The following object is masked from ‘package:oligo’:
+
+    backgroundCorrect
+
+"
+"2","The following object is masked from ‘package:BiocGenerics’:
+
+    plotMA
+
+"
+"0","installifnot(""Biobase"")"
+"0","installifnot(""arrayQualityMetrics"")"
+"2","Loading required package: arrayQualityMetrics
+"
+"2","Registered S3 method overwritten by 'htmlwidgets':
+  method           from         
+  print.htmlwidget tools:rstudio
+"
+"2","Registered S3 method overwritten by 'data.table':
+  method           from
+  print.data.table     
+"
+"0","installifnot(""genefilter"")"
+"2","Loading required package: genefilter
+"
+"0","installifnot(""annotate"")"
+"2","Loading required package: annotate
+"
+"2","Loading required package: XML
+"
+"0","installifnot(""xtable"")"
+"2","Loading required package: xtable
+"
+"0","installifnot(""gplots"")"
+"2","Loading required package: gplots
+"
+"2","
+Attaching package: ‘gplots’
+
+"
+"2","The following object is masked from ‘package:IRanges’:
+
+    space
+
+"
+"2","The following object is masked from ‘package:S4Vectors’:
+
+    space
+
+"
+"2","The following object is masked from ‘package:stats’:
+
+    lowess
+
+"
+"0","installifnot(""GOstats"")"
+"2","Loading required package: GOstats
+"
+"2","Loading required package: Category
+"
+"2","Loading required package: Matrix
+"
+"2","
+Attaching package: ‘Matrix’
+
+"
+"2","The following object is masked from ‘package:S4Vectors’:
+
+    expand
+
+"
+"2","Loading required package: graph
+"
+"2","
+Attaching package: ‘graph’
+
+"
+"2","The following object is masked from ‘package:XML’:
+
+    addNode
+
+"
+"2","The following object is masked from ‘package:Biostrings’:
+
+    complement
+
+"
+"2","
+"
+"2","
+Attaching package: ‘GOstats’
+
+"
+"2","The following object is masked from ‘package:AnnotationDbi’:
+
+    makeGOGraph
+
+"

@@ -1,0 +1,840 @@
+---
+title: "PEC 1. Análisis de datos ómicos: Microarrays de ADN"
+author: "Elena Cabello Yeves"
+date: "29/4/2021"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+    toc: yes
+    keep_tex: yes
+    fig_caption: yes
+mainfont: Courier New
+nocite: |
+    @Allison2006
+    @deng2014hemi
+    @bauer2011model
+    @gentleman2004bioconductor
+    @hackstadt2009filtering
+    @millenaar2006decide 
+    @wang2020bioinformatic
+bibliography: "/Users/Elena Cabello Yeves/Desktop/PEC1/References.bib"
+---
+
+\pagebreak 
+
+# 1. Abstract
+
+El síndrome de Turner (TS) es el trastorno de aneuploidía del cromosoma X más común en las mujeres. Los pacientes con 45X se pueden dividir en dos grupos: 45Xm y 45Xp con cromosoma X heredado materno y paterno, respectivamente. En el presente documento se analiza la expresión génica diferencial de 45Xm y 45Xp mediante microarrays así como la expresión génica para una hembra normal 46XX. Mediante el método RMA los datos son normalizados y filtrados para detectar genes diferencialmente expresados. 
+
+# 2. Objetivos
+
+El objetivo principal del presente trabajo, es realizar un análisis de datos de microarrays basado en lo aprendido en el curso para así poder encontrar genes diferencialmente expresados que intervienen en la patogénesis del síndrome de Turner (ST).
+
+El experimento contenía 36 muestras que consistían en:
+
+- 16 sujetos con ST. Identificados por tener un cromosoma X heredado por la madre (45, Xm).
+- 10 sujetos con ST que fueron identificados por tener un cromosoma X heredado por el padre (45, Xp).
+- 10 sujetos con el cariotipo femenino normal (46, XX).
+
+De las originales 36 muestras, realizamos una subselección de 18 para facilitar y personalizar el estudio. 
+
+
+# 3. Materiales y Métodos
+
+## 3.1. Etapas del análisis
+
+\begin{figure}[h]
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure1.png"}
+\caption{El proceso de ánalisis de Microarrays de ADN}
+\end{figure}
+
+El presente estudio analizado está englobado dentro de la investigación primaria clínica de tipo observacional, ya que un conjunto de datos procedentes de un análisis con microarrays son analizados desde una perspectiva estadística y bioinformática. 
+
+El análisis de microarrays fue realizado con "The GeneChip® Human Genome U133A 2.0 Array" de _Affymetrix_. Este array es de tipo "single" y representa más de 14.500 genes humanos bien caracterizados que se pueden utilizar para biología humana y enfermedades. 
+
+Además, este análisis ha sido realizado siguiendo las pautas descritas en los capítulos estudiados en clase, ciertos recursos encontrados en internet y en el documento generado para el Debate 2 de esta misma asignatura (figure 1). Asimismo, se tomará de referencia el artículo "_Bioinformatic Analysis Identifies Potential Key Genes in the Pathogenesis of Turner Syndrome_" [@wang2020bioinformatic].
+
+\pagebreak
+
+Los datos y la información de un Affymetrix GeneChip son almacenados en distintos ficheros. En el fichero CEL tenemos la intensidad media de los pixels de la sonda, la desviación estándar así como también información
+de dónde se sitúa la sonda dentro del array. De esta forma, cada array lleva asociado un fichero CEL. 
+
+Estos valores "crudos" de expresión obtenidos de estos archivos CEL son preprocesados siguiendo el método estudiado en clase, el método RMA (_robust multi-array average_). Este proceso consiste en tres pasos: integración de la correción de fondo, normalización por cuantiles y resumen de los valores del grupo de sondas [@Allison2006].
+
+Además, antes de la selección de genes los valores normalizados pueden ser sometidos a un filtraje no específico que elimina el ruido de fondo y limita los ajustes posteriores a los necesarios.
+
+Una vez los genes han sido seleccionados como diferencialmente expresados son agrupados para buscar patrones comunes de expresión. Para ello se utilizaron mapas de colores o “Heatmaps”, que son herramientas gráficas que muestran agrupaciones jerárquicas de los genes y/o las muestras y la representan mediante una gama de colores determinada que puede cambiarse de color o escalarse de forma personalizada [@deng2014hemi]
+
+Adicionalmente, las listas de genes que han sido diferencialmente expresados son anotadas en diversas bases de datos (como pueden ser _Entrez_ o _Gene Ontology_). Para ello, diversos paquetes disponibles en el proyecto Bioconductor son utilizados (ver ANEXO con los paquetes descargados).
+
+Finalmente, se realiza un análisis de enriquecimiento con la finalidad de contribuir a la interpretación biológica de los resultados. Este tipo de análisis tienen el objetivo de establecer si una determinada categoría aparece con mayor o menor frecuencia en la lista de genes seleccionados que en la población de genes [@bauer2011model]. En caso afirmativo, se indica que la lista de genes se encuentra “enriquecida” en estas funcionalidades.
+
+
+## 3.2. Software utilizado
+
+Con el fin de llevar a cabo el análisis de microarrays de ADN para estos datos, se utilizará el software estadístico R (https://www.r-project.org/). Para el análisis se ha actualizado la última versión disponible de R, la 4.0.5. Además, con la finalidad de interactuar con el software de R, se actualizó la interfaz denominada _RStudio_.
+
+Para la realización de esta tarea, se han debido instalar los paquetes necesarios y abrir sus correspondientes librerías (ver ANEXO). Muchos de estos paquetes y librerías han sido utilizados por primera vez durante el máster, ya que corresponden al proyecto de Bioconductor. 
+
+El proyecto Bioconductor (https://www.bioconductor.org/) proporciona herramientas para el análisis y la comprensión de datos genómicos de alto rendimiento. Este proyecto es una iniciativa para la creación colaborativa de software extensible para biología computacional y bioinformática. Los objetivos del proyecto incluyen: fomentar el desarrollo colaborativo y el uso generalizado de software innovador, reducir las barreras de entrada a la investigación científica interdisciplinaria y promover el logro de la reproducibilidad remota de los resultados de la investigación [@gentleman2004bioconductor]. 
+
+## 3.3. Obtención y selección de datos
+
+Los datos en que ha sido basado el estudio se han obtenido a partir del estudio depositado en el repositorio GEO con identificador “GSE46687” (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE46687) sobre identificación de genes que intervienen en la patogénesis del síndrome de Turner. Desde este repositorio se obtienen 36 archivos de tipo .CEL cada uno correspondiente a una muestra de una mujer (células mononucleares de sangre periférica). De estas 36 muestras, solo serán seleccionadas de forma aleatoria 18. Para ello, introduciremos una semilla aleatoria que contiene nuestro número de la UOC, en mi caso el número 1126006.
+
+Con la finalidad de estudiar el impacto del cromosoma X de los padres en el fenotipo TS, se analizó la expresión génica diferencial de 45Xm y 45Xp mediante microarrays. La expresión génica para 46XX hembra normal también se analizó en paralelo para investigar los cambios en la expresión génica de todo el genoma entre pacientes con ST y mujeres normales.
+
+También ha de destacarse que mediante comandos en R (ver ANEXO), fueron creadas las carpetas deseadas: una correspondiente a los datos de origen y otra a los resultados finales.
+
+## 3.4. Lectura de los datos
+
+Los datos para el análisis son proporcionados como dos tipos de archivos: los archivos “CEL” y el archivo "targetsAll.csv".
+
+Por un lado, los archivos CEL son los archivos con los "datos sin procesar" que se originan después del escaneo de microarrays y el preprocesamiento con el software Affymetrix (hay uno para cada muestra del experimento). Estos archivos han sido guardados en la carpeta de datos. 
+
+Por otro lado, el archivo "targetsAll.csv" contiene la información sobre grupos y covariables y también es almacenado en la carpeta de datos. Es decir, este archivo relaciona el nombre de cada archivo .CEL con su condición en el experimento. 
+
+En primer lugar, leemos el archivo .csv y crearemos un nuevo conjunto de datos denominado "targets". En el siguiente paso leemos los datos brutos (archivos CEL) y los almacenamos en una variable (denominada rawData). Para ello, cargamos el paquete "oligo" con la biblioteca de funciones. En este paquete están codificadas las funciones para leer los archivos CEL (ver ANEXO). 
+
+# 4. Resultados
+
+## 4.1. Grupos y muestras
+
+Exploramos el conjunto de datos para poder realizar mejor nuestros análisis. Observamos que tenemos 18 muestras correspondiente cada una a un individuo (todas mujeres). Además, en la primera columna tenemos el título o nombre de la muestra "X.title." y en la segunda columna tenemos el nombre del cariotipo "X.karyotype.". Del número 1-6 nos encontramos al cariotipo 46XX, del 7-12 al 45Xm y del 13 al 18 al 45Xp.
+
+Podemos realizar una matriz de expresión que muestre cada array, de forma que indica las dimensiones y primeras filas (table 1).
+
+\begin{table}[h]
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/table1.png"}
+\caption{Matriz de expresión que muestra cada array de ADN.}
+\end{table}
+
+
+\pagebreak
+
+## 4.2. Exploración y control de calidad de datos crudos "raw data"
+
+### 4.2.1. Exploración estadística de los datos
+
+**HISTOGRAMA**
+
+A continuación, procedemos a realizar un histograma representativo de nuestras muestras, que nos permite hacernos una idea de las distribuciones de los distintos arrays.
+
+En esta gráfica aparece cierta heterogeneidad entre las muestras. Sin embargo, todas parecen ser compatibles con una "normalidad" y no parece que hayan problemas con los datos (figure 2). 
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure2.png"}
+\caption{Distribución de las expresiones de cada array.}
+\end{figure}
+
+**DIAGRAMA DE CAJAS (BOXPLOT)**
+
+El diagrama de cajas nos muestra la misma información pero facilitando la comparación entre distribuciones.
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure3.png"}
+\caption{Diagrama de cajas múltiple (Boxplot) que muestra la distribución de las intensidades a lo largo de todas las muestras. Se observan diferencias entre los boxplots correspondientes al cariotipo normal (del 1 al 6) y aquellos correspondientes al cariotipo 45Xm y 45Xp (del 7 al 18).}
+\end{figure}
+
+El presente diagrama de cajas nos muestra de nuevo que las distribuciones de los datos son bastante similares. Se aprecia heterogeneidad pero no aparece ninguna diferencia sistemática (figure 3). 
+
+**MAPA DE COLORES (HEATMAP)**
+
+A continuación, también podemos representar un mapa de colores con las distancias euclídeas entre cada uno de los arrays distintos que nos informa de la agrupación de muestras por condiciones experimentales (figure 4).
+
+\begin{figure}[h]
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure4.png"}
+\caption{Mapa de colores (Heatmap) con las distancias euclídeas. En general, las muestras con un cariotipo normal 46XX (del 1 al 6) parecen estar más cercana entre ellas que las del cariotipo 45Xm o 45Xp (7-18).}
+\end{figure}
+
+
+**ANÁLISIS DE COMPONENTES PRINCIPALES (PCA)** 
+
+También podemos representar un análisis de componentes principales (PCA) para analizar la variabilidad de las muestras (ver ANEXO con código en R).
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure5.png"}
+\caption{Análisis de componentes principales de los datos crudos (Raw Data).}
+\end{figure}
+
+Tal y como puede observarse en la presente figura (figure 5), el primer componente del PCA representa el 86.2% de la variabilidad total de las muestras. Esta variabilidad es principalmente aportada por el caripotipo, ya que las muestras con ST "45Xm" y "45Xp" están casi todas a la derecha y las de sanos "46XX" a la izquierda.
+
+
+### 4.2.2. Control de calidad
+
+Para realizar el control de calidad se requerirá del paquete "arrayQualitMetrics". Este paquete permite encapsular todos los análisis anteriores facilitando que sean ejecutados e interpretados. Con la función "arrayQualitymetrics" se llevan a cabo todos los análisis de golpe y se genera un informe de resultados.
+
+Explorando nuestros directorios comprobamos que los resultados del análisis de calidad están en la carpeta creada. La siguiente figura (table 2) muestra el encabezado que contiene una tabla con tres columnas que indican algunos de los criterios de calidad que deben ser verificados. Como encontramos 2 marcas en el número 15 podríamos eliminarlo. Sin embargo, decido mantenerla en el análisis dado que se trata solo de una muestra. 
+
+\begin{table}[h]
+\centering
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/table2.png"}
+\caption{Resumen producido por el paquete arrayQualityMetrics.}
+\end{table}
+
+## 4.3. Normalización, Filtraje y control de calidad
+
+### 4.3.1. Normalización y Filtraje
+
+Dado que el control de calidad ha sido realizado, procedemos a normalizar los datos y a realizar un resumen de ellos. Para la normalización, se utilizará el método RMA visto en clase, que es uno de los más utilizados entre arrays de affymetrix [@millenaar2006decide]. 
+
+Este método, tal y como ha sido explicado previamente, contiene 3 pasos principales:
+
+- Correción de fondo.
+
+- Normalización para poder comparar los valores de los arrrays.
+
+- Resumen de las diferentes sondas asociadas a cada grupo.
+
+\pagebreak
+
+**NORMALIZACIÓN**
+
+Para la normalización, se utilizará la función "rma" de affymetrix (ver ANEXO).
+
+**FILTRAJE**
+
+La selección de genes diferencialmente expresados es usualmente afectada por el número de genes sobre los que hacemos esta selección. A mayor número de genes, mayor debe ser el ajuste necesario de los _p-valores_. 
+
+A continuación, mostramos el diagrama de cajas con los datos normalizados y filtrados. Véase que ha sido utilizada la paleta de colores "Grandbudapest2" para visualizar mejor los datos (figure 6).
+
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure6.png"}
+\caption{Boxplot representativo de los datos normalizados.}
+\end{figure}
+
+**DISTRIBUCIÓN DE LA VARIABILIDAD**
+
+A continuación, podemos representar en una gráfica (figure 7) la variabilidad global de cada gen sin tener en cuenta los grupos. En caso que un gen esté diferencialmente expresado será necesaria una cierta diferencia entre grupos, de forma que la varianza global del gen será mayor que los que no presentan una expresión diferencial. Cuanto mayor sea el número, mayor será el ajuste necesario de los _p-valores_, lo que nos llevará a acabar perdiendo más genes.
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure7.png"}
+\caption{Gráfica mostrando la variabilidad global de cada gen sin tener en cuenta los grupos.}
+\end{figure}
+
+
+**ANÁLISIS DE COMPONENTES PRINCIPALES (PCA): datos normalizados**
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure8.png"}
+\caption{Nuevo PCA con los datos normalizados.}
+\end{figure}
+
+Mediante este nuevo PCA, observamos que el primer componente ahora representa un 33.3% del total. Observamos que el porcentaje de la variabiliadd explicada ha disminudo con respecto al PCA realizado previamente con los datos crudos. Ahora observamos que el cariotipo 46XX se encuentra representado en el primer cuadrante de la izquierda (figure 8). 
+\pagebreak
+
+## 4.3.2. Filtraje no específico
+
+A continuación, filtramos aquellos genes cuya variabilidad puede atribuirse a una variación aleatoria, es decir, aquellos genes de los cuales no se espera que se expresen diferencialmente. Esta técnica ha demostrado ser útil para reducir el número de pruebas a realizar con el correspondiente aumento de potencia [@hackstadt2009filtering].
+
+La función "nsFilter" devuelve los valores filtrados en un objeto expressionSet y nos proporciona un informe de los resultados del filtraje (ver ANEXO).
+
+De esta forma encontramos: 
+
+- numDupsRemoved-21734
+
+- numLowVar-15121
+
+- numRemoved.ENTREZID-12770 
+
+- feature.exclude-10
+
+## 4.3.3. Guardando los datos normalizados y filtrados
+
+A continuación, guardamos los objetos binarios (ver ANEXO con código en R), así como también los archivos de texto o Excel. Los datos filtrados normalizados son el punto de partida para análisis adicionales, pero es posible que queramos volver a ellos, por ejemplo, para revisar valores específicos de expresión génica.
+
+\pagebreak
+
+## 4.4. Identificación de genes diferencialmente expresados 
+
+### 4.4.1. Diseño de la matriz y comparaciones
+
+El primer paso para el análisis basado en modelos lineales es crear la matriz de diseño. Básicamente creamos una tabla que describe la asignación de cada muestra a un grupo o condición experimental. 
+
+La matriz de diseño se puede definir manualmente o a partir de una variable de factor que se haya introducido en el archivo de “objetivos” con este fin creado específicamente para ella. En este estudio, la variable "X.karyotype" representa el cariotipo que puede ser Xm, Xp o XX.
+
+Representamos las 3 posibles combinaciones: XX-Xm, o XX-Xp o Xm-Xp (table 3).
+
+\begin{table}[h]
+\centering
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/table3.png"}
+\caption{Diseño de la matriz.}
+\end{table}
+
+Además, la matriz de contrastes se utiliza para describir las comparaciones entre grupos. Consta de tantas columnas como comparaciones y tantas filas como grupos (es decir, como columnas de la matriz de diseño). Una comparación entre grupos, denominada "contraste", se representa con un "1" y un "-1" en las filas de grupos a comparar y ceros en el resto. Si varios grupos intervinieran en la comparación tendría tantos coeficientes como grupos con la única restricción de que su suma sería cero.
+
+En este ejemplo comprobamos el efecto de unir las 3 combinaciones posibles de cariotipos (ver ANEXO y table 4):
+
+\begin{table}[h]
+\centering
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/table4.png"}
+\caption{Matriz de constrastes.}
+\end{table}
+
+### 4.4.2. Estimación del modelo y selección de genes
+
+Una vez definida la matriz de diseño y los contrastes, podemos proceder a estimar el modelo, estimar los contrastes y realizar las pruebas de significancia que nos indicarán si cada gen y cada comparación pueden considerarse expresados diferencialmente.
+
+El análisis proporciona las estadísticas de prueba habituales, como _p-valores_ ajustados o moderados por t que se utilizan para ordenar los genes de más a menos que se expresen de forma diferencial.
+
+Toda la información relevante para una mayor exploración de los resultados ha sido almacenada en un objeto R de clase MArrayLM definido en el paquete limma. Hemos denominado a este objeto: "fit.main" (ver ANEXO).
+
+
+### 4.4.3. Listas de genes diferencialmente expresados
+
+El paquete limma implementa la función topTable que contiene, para un contraste dado, una lista de genes ordenados de menor a mayor valor p, que puede considerarse que se expresa de mayor a menor diferencial. Para cada gen se proporcionan las siguientes estadísticas:
+
+- logFC: Diferencia media entre grupos.
+
+- AveExpr: expresión media de todos los genes en la comparación.
+
+- t: Estadístico t moderado (estadístico similar a la prueba t para la comparación).
+
+- P.Value: _p-valor_ de la prueba.
+
+- Adj.P.Val: _p-valor_ ajustado.
+
+- B: Estadístico B, que se trata de un logaritmo de las probabilidades del gen de ser expresado diferencialmente frente a no serlo.
+
+Podemos echar un vistazo a las primeras líneas de cada tabla creada "topTable" (ver ANEXO código R y table 5).
+
+\begin{table}[h]
+\centering
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/table5.png"}
+\caption{Tabla topTab XXvsXm.}
+\end{table}
+
+\pagebreak
+
+
+### 4.4.4. Anotación de genes
+
+En el proceso denominado "anotación", brindamos información adicional sobre las características que se han seleccionado y se busca información para asociar identificadores como pueden ser SYMBOL, ENTREZ o la descripción del nombre en GENENAME (table 6). 
+
+Dado que tenemos tres tablas, se prepara y se utiliza una primera función (ver ANEXO).
+
+\begin{table}[h]
+\centering
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/table6.png"}
+\caption{Anotación de genes.}
+\end{table}
+
+**Gráficos de volcán (VOLCANO-PLOTS)**
+
+Los gráficos tipo volcano-plot permiten visualizar la expresión diferencial general. Estos gráficos muestran si hay muchos o pocos genes expresados de manera significativa o si este número es bajo. En el eje X representan los cambios de expresión en escala logarítmica (“efecto biológico”) y en el eje Y representan el -log del _p-valor_ o alternativamente el estadístico B (ver figure 9).
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure9.png"}
+\caption{Observamos la distribución del volcano-plot. Parece relativamente abundante.}
+\end{figure}
+
+## 4.5. Comparación entre distintas comparaciones
+
+A continuación, seleccionamos genes en varias comparaciones. A veces, los genes biológicamente relevantes serán aquellos que se seleccionen en uno de ellos pero no en otros. En otras ocasiones el interés estará en genes que se seleccionen en todas las comparaciones.
+
+Mediante las funciones "decideTests" y "VennDiagram" del paquete "limma" podemos anotar y contar los genes seleccionados en cada comparación (ver ANEXO con código R y table 7).
+
+Esta tabla nos muestra que hay genes en común en 2 de las 3 comparaciones (table 7).
+
+\begin{table}[h]
+\centering
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/table7.png"}
+\caption{Comparación entre distintas comparaciones.}
+\end{table}
+
+## 4.6. Anotación de resultados
+
+Mediante un diagrama de Venn podemos visualizar mejor nuestros resultados. La figura (figura X) muestra un diagrama de Venn con el número de genes que han sido expresados diferencialmente en cada comparación con un límite dado (aquí el límite ha sido definido por “FDR <0.1” y “logFC> 1”.
+
+En la siguiente figura (figure 10) bservamos representados el número de genes en común por comparaciones. 28 entre las comparaciones de XXvsXm y XXvsXp, y 0 con la comparación de XpvsXm.
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure10.png"}
+\caption{Diagrama de Venn. Observamos representados el número de genes en común por comparaciones.}
+\end{figure}
+
+## 4.7. Análisis de significación biológica
+
+### 4.7.1. Análisis de enriquecimiento (“Gene Enrichment Analysis”)
+
+La finalidad principal del análisis de significación biológica es establecer si dada una lista de genes seleccionados por estar diferencialmente expresados entre dos condiciones, las funciones y procesos biológicos aparecen en esta lista con mayor frecuencia que entre el resto de genes analizados.
+
+**PERFILES DE EXPRESIÓN**
+
+Posteriormente a la selección de los genes que están diferencialmente expresados, pueden visualizarse las expresiones de cada gen de forma agrupada para destacar aquellos genes que se encuentran arriba o abajo. Estos constituyen lo que se denomina perfiles de expresión.
+
+**MAPAS DE COLORES**
+
+Una forma de visualización de estos genes es utilizando mapas de colores (Heatmap). Estos gráficos utilizan paletas de colores para resaltar valores distintos. Mediante la función "heatmap.2" del paquete "gplots" pueden verse sofisticados mapas de color. 
+
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure11.png"}
+\caption{Mapa de colores (Heatmap) basado en los genes que han sido seleccionados por estar diferencialmente expresados. Se observa mayor similitud entre los pertenecientes al cariotipo 46XX ( 1 al 6) en comparación a los pertenecientes al 45Xm (7 al 12) y al 45Xp (13 al 18), que a su vez, están más agrupados entre sí.}
+\end{figure}
+
+\begin{figure}
+\includegraphics{"/Users/Elena Cabello Yeves/Desktop/PEC1/Images/figure12.png"}
+\caption{Red obtenida del análisis de enriquecimiento en la comparación "XmvsXX".}
+\end{figure}
+
+\pagebreak 
+
+# 5. Discusión
+
+En primer lugar, se realizaron diversos controles de calidad que han permatido mostrar que los datos con los que se ha trabajado eran de una calidad buena o suficiente. A pesar de presentar una cierta heterogeneidad, la normalización con el método RMA nos ha permitido, dentro de lo que cabe, homogeneizarlos. Además, mediante la normalización y la filtración hemos detectado un cierto número de genes diferencialmente expresados que podrían ser usados en otros estudios.
+
+Podríamos decir que el presente estudio muestra un análisis estándar de microarrays de ADN. Sin embargo, podríamos encontrar algunos inconvenientes. Por ejemplo, el método de _Gene set expression analysis_ pese a incorporar más información (mayor cantidad de genes), puede dar lugar a falsos negativos. Además, podrían haber errores de correspondencia de genes en una ruta metabólica determinada que no fuese la suya.
+
+Otros problemas que nos podríamos encontrar en el presente análisis podrían ser relativos al tamaño limitado de las muestras (más aún escogiendo 18 de las 36 originales) que podría resultar en algunos falsos negativos. Finalmente, las decisiones podrían ser un poco arbitrarias en la elección de los métodos a seguir y las especificaciones debido a un desconocimiento previo de la materia.
+
+# 6. Conclusión
+
+Este análisis nos ha permitido aplicar aquello aprendido en clase, así como también profundizar en la materia. 
+
+Pese al uso de este tipo de microarrays de ADN y el presente análisis, se deberá tener en cuenta que si un gen es considerado expresado diferencialmente, se deberá recurrir a otras técnicas para corroborar esta hipótesis. 
+
+Finalmente, siempre será importante incorporar conocimiento biológico con la finalidad de minimizar una obtención de resultados no ajustados a la realidad biológica.
+
+\pagebreak 
+
+# 7. ANEXO: Código R utilizado para los análisis
+
+```{r, eval=F, echo=T}
+# -------------------------------
+# Instalación de paquetes
+# -------------------------------
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.12")
+
+install.packages("knitr")
+install.packages("gplots")
+install.packages("ggplot2")
+install.packages("ggrepel")
+install.packages("prettydoc")
+install.packages("devtools")
+
+BiocManager::install("GenomeInfoDbData")
+BiocManager::install("oligoClasses")
+BiocManager::install("oligo")
+BiocManager::install("arrayQualityMetrics")
+BiocManager::install("pvca")
+
+# Paquetes no necesarios hasta el análisis
+BiocManager::install("limma")
+BiocManager::install("Biobase")
+BiocManager::install("genefilter")
+BiocManager::install("hgu133plus2.db")
+BiocManager::install("annotate")
+BiocManager::install("org.Hs.eg.db")
+BiocManager::install("ReactomePA")
+BiocManager::install("reactome.db")
+BiocManager::install("DO.db")
+BiocManager::install("tweenr")
+BiocManager::install("ggnewscale")
+BiocManager::install("ReactomePA")
+
+# -------------------------------
+# Obtención y selección de datos.
+# -------------------------------
+
+# Creamos las carpetas correspondientes a los datos y los resultados.
+
+setwd(".")
+dir.create("data")
+dir.create("results")
+dir.create("images")
+
+# Mediante una función predefinida por el enunciado, selecionaremos 18 de las 36 muestras.
+
+selectSamples<- function (myID){
+ set.seed(myID)
+ selected <- c(sample(1:10, 6),11, sample(12:26, 5), sample(27:36,6))
+ selected <- sort(selected)
+}
+
+# -----------------------------------
+# Lectura del archivo "targetsAll.csv"
+# -----------------------------------
+
+# Leemos el archivo "targetsAll.csv" y creamos un nuevo conjunto de datos.
+
+targets <- read.csv("/Users/Elena Cabello Yeves/Desktop/PEC1/data/targetsAll.csv", header = TRUE) 
+
+# Abrimos la librería "Biobase" y seleccionamos las 18 muestras de forma aleatoria
+# utilizando el número personal de la UOC.
+# La función read.AnnotatedDataFrame nos permite abrir nuestro archivo.csv.
+
+library(Biobase)
+mySelected <- selectSamples(1126006)
+targetsAll <- read.AnnotatedDataFrame("./data/targetsAll.csv", header = TRUE, row.names = 1, sep = ",")
+
+# Seleccionamos las muestras en un nuevo conjunto de datos "myTargets".
+
+myTargets <- targetsAll[mySelected,]
+
+# -------------------------------
+# Lectura de los archivos CEL
+# -------------------------------
+
+library(oligo)
+celFiles <- list.celfiles("./data", full.names = TRUE)
+library(Biobase)
+rawData <- read.celfiles(celFiles, phenoData = myTargets)
+
+# ------------------------------------------
+# Cambio del nombre largo por uno abreviado
+# ------------------------------------------
+
+my.targets@data$ShortName->rownames(pData(rawData))
+colnames(rawData) <-rownames(pData(rawData)) 
+head(rawData)
+
+# ----------------------------------
+# Exploración de los datos "crudos"
+# ----------------------------------
+
+head(pData(sampleInfo))
+#class(rawData)
+
+# ------------------------------------
+# Matriz de expresión para cada array
+# ------------------------------------
+
+# Dimensiones y primeras filas de la matriz de expresiones
+
+exp_matrix = exprs(rawData)
+#dim(exp_matrix)
+head(exp_matrix, 5)
+
+# ----------------------------------------------------------
+Exploración y control de calidad de datos crudos "raw data"
+# ----------------------------------------------------------
+
+# ------------------------------------
+Exploración estadística de los datos
+# ------------------------------------
+
+## HISTOGRAMA
+
+info <- data.frame(grupo=c(4,4,4,2,2,2))
+sampleNames <- pData(rawData)$Target
+hist(rawData, main="Distribución de la señal", col=wes_palette(name="GrandBudapest2"), lty=1:ncol(info))
+
+## DIAGRAMA DE CAJAS (BOXPLOT)
+
+boxplot(rawData, cex.axis=0.6,  col=wes_palette(name="GrandBudapest2"), las=2, main="Distribución de señal de los chips seleccionados")
+
+## MAPA DE COLORES (HEATMAP)
+
+manDist <- dist(t(exprs(rawData)))
+heatmap (as.matrix(manDist), col=heat.colors(16))
+
+## ANÁLISIS DE COMPONENTES PRINCIPALES (PCA)
+
+# Con la finalidad de obtener un análisis de componentes principales completo se utiliza
+# la siguiente función especialmente diseñada para ello.
+# En primer lugar cargamos las librerías "ggplot2" y "ggrepel".
+library(ggplot2)
+library(ggrepel)
+# Creamos la función de interés completa.
+plotPCA3 <- function (datos, labels, factor, title, scale,colores, size = 1.5, glineas = 0.25) {
+   data <- prcomp(t(datos),scale=scale)
+   # Ajustes para la gráfica
+   dataDf <- data.frame(data$x)
+   Group <- factor
+   loads <- round(data$sdev^2/sum(data$sdev^2)*100,1)
+   # Gráfico principal
+   p1 <- ggplot(dataDf,aes(x=PC1, y=PC2)) +
+     theme_classic() +
+     geom_hline(yintercept = 0, color = "gray70") +
+     geom_vline(xintercept = 0, color = "gray70") +
+     geom_point(aes(color = Group), alpha = 0.55, size = 3) +
+     coord_cartesian(xlim = c(min(data$x[,1])-5,max(data$x[,1])+5)) +
+     scale_fill_discrete(name = "Group")
+   # Evitando la superposición de etiquetas
+   p1 + geom_text_repel(aes(y = PC2 + 0.25, label = labels),segment.size = 0.25, size = size) + 
+     labs(x = c(paste("PC1",loads[1],"%")),y=c(paste("PC2",loads[2],"%"))) +  
+     ggtitle(paste("Análisis de Componentes principales para: ",title,sep=" "))+ 
+     theme(plot.title = element_text(hjust = 0.5)) +
+     scale_color_manual(values=colores)
+}
+
+# Representamos un análisis de Componentes principales.
+# Cada color indica un cariotipo diferente ST (45Xm, 45Xp) o sanos (46XX).
+# La etiqueta se encontrará en la columna "X.title." y el factor en la "X.karyotype.".
+plotPCA3(exprs(rawData), labels = rawData$X.title., factor = rawData$X.karyotype., 
+          title="Raw data", scale = FALSE, size = 3, 
+          colores = c("red", "purple", "orange"))
+
+# ---------------------------
+# Control de calidad
+# ---------------------------
+
+library(arrayQualityMetrics)
+arrayQualityMetrics(rawData)
+
+# ---------------------------------------------
+# Normalización, Filtraje y control de calidad
+# ---------------------------------------------
+
+# --------------------------
+# Normalización y Filtraje
+# --------------------------
+
+## Normalización
+eset_rma <- rma(rawData)
+
+## Boxplot
+boxplot(eset_rma,main="RMA", names=sampleNames, cex.axis=0.7, col=wes_palette(name="GrandBudapest2"),las=2)
+
+## Variabilidad de los genes
+sds <- apply (exprs(eset_rma), 1, sd)
+sdsO<- sort(sds)
+plot(1:length(sdsO), sdsO, main="Distribución de la variabilidad de todos los genes",
+     sub="Las líneas verticales representan los percentiles de 90% y 95%",
+     xlab="Gene index (del menos al más variable)", ylab="Desviación estándar")
+abline(v=length(sds)*c(0.9,0.95))
+
+## Análisis de componentes principales (PCA): datos normalizados
+
+plotPCA3(exprs(eset_rma), labels = rawData$X.title., factor = rawData$X.karyotype., 
+          title="Normalized data", scale = FALSE, size = 3, 
+          colores = c("red", "purple", "orange"))
+
+# -------------------------
+# Filtraje no específico
+# -------------------------
+
+library(genefilter)
+library(hgu133plus2.db) # Libreria específica para este conjunto de datos
+annotation(eset_rma) <- "hgu133plus2.db"
+filtered <- nsFilter(eset_rma, 
+                     require.entrez = TRUE, remove.dupEntrez = TRUE,
+                     var.filter=TRUE, var.func=IQR, var.cutoff=0.75, 
+                     filterByQuantile=TRUE)
+names(filtered)
+class(filtered$eset)
+
+print(filtered$filter.log)
+eset_filtered <-filtered$eset
+
+# ---------------------------------------------
+# Guardando los datos normalizados y filtrados
+# ---------------------------------------------
+
+write.csv(exprs(eset_rma), file="./results/normalized.Data.csv")
+write.csv(exprs(eset_filtered), file="./results/normalized.Filtered.Data.csv")
+save(eset_rma, eset_filtered, file="./results/normalized.Data.Rda")
+
+# ----------------------------------------------------
+# Identificación de genes diferencialmente expresados 
+# ----------------------------------------------------
+
+# ------------------------------------
+# Diseño de la matriz y comparaciones
+# ------------------------------------
+
+designMat<- model.matrix(~0+X.karyotype., pData(eset_filtered))
+colnames(designMat) <- c("Xm", "Xp", "XX")
+print(designMat)
+
+library(limma)
+cont.matrix <- makeContrasts (XXvsXm = XX-Xm,
+                              XXvsXp = XX-Xp,
+                              XpvsXm = Xp-Xm,
+                              levels=designMat)
+print(cont.matrix)
+
+# ---------------------------------------------
+# Estimación del modelo y selección de genes
+# ---------------------------------------------
+
+library(limma)
+fit<-lmFit(eset_filtered, designMat)
+fit.main<-contrasts.fit(fit, cont.matrix)
+fit.main<-eBayes(fit.main)
+class(fit.main)
+
+# ---------------------------------------------
+# Listas de genes diferencialmente expresados
+# ---------------------------------------------
+
+topTab_XXvsXm <- topTable (fit.main, number=nrow(fit.main), coef="XXvsXm", adjust="fdr") 
+head(topTab_XXvsXm)
+
+topTab_XXvsXp <- topTable (fit.main, number=nrow(fit.main), coef="XXvsXp", adjust="fdr") 
+head(topTab_XXvsXp)
+
+topTab_XpvsXm <- topTable (fit.main, number=nrow(fit.main), coef="XpvsXm", adjust="fdr") 
+head(topTab_XpvsXm)
+
+# ---------------------
+#  Anotación de genes
+# ---------------------
+
+annotatedTopTable <- function(topTab, anotPackage)
+ {
+  topTab <- cbind(PROBEID=rownames(topTab), topTab)
+  myProbes <- rownames(topTab)
+  thePackage <- eval(parse(text = anotPackage))
+  geneAnots <- select(thePackage, myProbes, c("SYMBOL", "ENTREZID", "GENENAME"))
+  annotatedTopTab<- merge(x=geneAnots, y=topTab, by.x="PROBEID", by.y="PROBEID")
+ return(annotatedTopTab)
+ }
+
+topAnnotated_XXvsXm <- annotatedTopTable(topTab_XXvsXm, anotPackage="hgu133plus2.db")
+topAnnotated_XXvsXp <- annotatedTopTable(topTab_XXvsXp,anotPackage="hgu133plus2.db")
+topAnnotated_XpvsXm <- annotatedTopTable(topTab_XpvsXm, anotPackage="hgu133plus2.db")
+write.csv(topAnnotated_XXvsXm, file="./results/topAnnotated_XXvsXm.csv")
+write.csv(topAnnotated_XXvsXp, file="./results/topAnnotated_XXvsXp.csv")
+write.csv(topAnnotated_XpvsXm, file="./results/topAnnotated_topAnnotated_XpvsXm.csv")
+
+# ------------------------------------
+# Gráficos de volcán (VOLCANO-PLOTS)
+# ------------------------------------
+
+library(hgu133plus2.db)
+geneSymbols <- select(hgu133plus2.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=1, highlight=4, names=SYMBOLS, 
+            main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[1], sep="\n"),  xlim=c(-5,5)) 
+abline(v=c(-1,1))
+
+# -------------------------------------------
+# Comparación entre distintas comparaciones
+# -------------------------------------------
+
+library(limma)
+res<-decideTests(fit.main, method="separate", adjust.method="fdr", p.value=0.1, lfc=1)
+
+sum.res.rows<-apply(abs(res),1,sum)
+res.selected<-res[sum.res.rows!=0,] 
+print(summary(res))
+
+# -------------------------------------------
+# Anotación de resultados - Diagrama de Venn
+# -------------------------------------------
+
+vennDiagram (res.selected[,1:3], cex=0.9)
+title("Genes en común entre las tres comparaciones\n Genes seleccionados con un FDR < 0.05 y logFC > 1")
+
+# -------------------------------------
+# Análisis de significación biológica
+# -------------------------------------
+
+# ---------------------------------------------------------
+# Análisis de enriquecimiento (“Gene Enrichment Analysis”)
+# ---------------------------------------------------------
+
+# ---------------------------------------------------------
+# Generamos un sofisticado mapa de colores (Heatmap)
+# ---------------------------------------------------------
+
+probesInHeatmap <- rownames(res.selected)
+HMdata <- exprs(eset_filtered)[rownames(exprs(eset_filtered)) %in% probesInHeatmap,]
+
+geneSymbols <- select(hgu95av2.db, rownames(HMdata), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+rownames(HMdata) <- SYMBOLS
+write.csv(HMdata, file = file.path("./results/data4Heatmap.csv"))
+
+
+grupColors <- unlist(lapply(pData(eset_rma)$X.karyotype., color.map))
+require("gplots")
+heatmap.2(exprs2cluster,
+col=bluered(75), scale="row",
+ColSideColors=grupColors, key=TRUE, symkey=FALSE,
+density.info="none", trace="none", cexCol=1)
+
+# ------------------------
+# Significación biológica
+# ------------------------
+
+# Creamos una función
+
+listOfTables <- list(XXvsXm = topTab_XXvsXm)
+listOfSelected <- list()
+for (i in 1:length(listOfTables)){
+   # select the toptable
+   topTab <- listOfTables[[i]]
+   # select the genes to be included in the analysis
+   whichGenes<-topTab["adj.P.Val"]<0.15
+   selectedIDs <- rownames(topTab)[whichGenes]
+   # convert the ID to Entrez
+   EntrezIDs<- select(hgu133plus2.db, selectedIDs, c("ENTREZID"))
+   EntrezIDs <- EntrezIDs$ENTREZID
+   listOfSelected[[i]] <- EntrezIDs
+   names(listOfSelected)[i] <- names(listOfTables)[i]
+ }
+sapply(listOfSelected, length)
+
+# Creamos nuevos conjuntos de datos para GO y KEGG
+
+mapped_genes2GO <- mappedkeys(org.Hs.egGO)
+mapped_genes2KEGG <- mappedkeys(org.Hs.egPATH)
+mapped_genes <- union(mapped_genes2GO , mapped_genes2KEGG)
+
+# -------------------------------------------
+# Cargamos una serie de librerías necesarias
+# -------------------------------------------
+library(DO.db)
+library(GO.db)
+library(tweenr)
+library(ggnewscale)
+library(ReactomePA)
+
+listOfData <- listOfSelected
+comparisonsNames <- names(listOfData)
+universe <- mapped_genes
+
+# ------------------------------
+# Generamos el enriquecimiento
+# ------------------------------
+for (i in 1:length(listOfData)){
+   genesIn <- listOfData[[i]]
+   comparison <- comparisonsNames[i]
+   enrich.result <- enrichPathway(gene = genesIn,
+                                  pvalueCutoff = 0.05,
+                                  readable = T,
+                                  pAdjustMethod = "BH",
+                                  organism = "human",
+                                  universe = universe)
+   
+   cat("##################################")
+   cat("\nComparison: ", comparison,"\n")
+   print(head(enrich.result))
+ 
+   if (length(rownames(enrich.result@result)) != 0) {
+   write.csv(as.data.frame(enrich.result), 
+              file =paste0("./results/","ReactomePA.Results.",comparison,".csv"), 
+              row.names = FALSE)
+   
+   pdf(file=paste0("./results/","ReactomePABarplot.",comparison,".pdf"))
+     print(barplot(enrich.result, showCategory = 15, font.size = 4, 
+             title = paste0("Reactome Pathway Analysis for ", comparison,". Barplot")))
+   dev.off()
+   
+   pdf(file = paste0("./results/","ReactomePAcnetplot.",comparison,".pdf"))
+     print(cnetplot(enrich.result, categorySize = "geneNum", schowCategory = 15, 
+          vertex.label.cex = 0.75))
+   dev.off()
+   }
+}
+
+# ----------------------------------------------------------
+# Red a partir de los genes seleccionados en la comparación
+# ----------------------------------------------------------
+cnetplot(enrich.result, categorySize = "geneNum", schowCategory = 15, 
+          vertex.label.cex = 0.75)
+```
+
+\pagebreak
+
+# 8. Referencias
+
+
+
+

@@ -1,0 +1,4 @@
+"0","write.csv(topAnnotated_XXvsXm, file=""./result/topAnnotated_FiltrovsMetformina.csv"")
+"
+"2","Error in is.data.frame(x) : object 'topAnnotated_XXvsXm' not found
+"

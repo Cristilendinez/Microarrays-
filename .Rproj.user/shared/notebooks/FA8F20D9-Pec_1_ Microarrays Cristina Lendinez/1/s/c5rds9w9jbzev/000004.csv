@@ -1,0 +1,18 @@
+"0","#load the library
+library(pvca)
+pData(eset_rma) <- myTargets
+#select the threshold
+pct_threshold <- 0.6
+#select the factors to analyze
+batch.factors <- c(""grupos"", ""Colors"")
+#run the analysis
+pvcaObj <- pvcaBatchAssess (eset_rma, batch.factors, pct_threshold)
+"
+"2","boundary (singular) fit: see ?isSingular
+"
+"2","boundary (singular) fit: see ?isSingular
+"
+"2","boundary (singular) fit: see ?isSingular
+"
+"2","boundary (singular) fit: see ?isSingular
+"

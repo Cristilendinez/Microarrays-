@@ -1,0 +1,20 @@
+"0","listOfSelected <- list()
+for (i in 1:length(listOfTables)){
+    # select the toptable
+    topTab <- listOfTables[[i]]
+    # select the genes to be included in the analysis
+    whichGenes<-topTab[""adj.P.Val""]<0.15
+    selectedIDs <- rownames(topTab)[whichGenes]
+    # convert the ID to Entrez
+    EntrezIDs<- select(clariomsmousetranscriptcluster.db, selectedIDs, c(""ENTREZID""))
+    EntrezIDs <- EntrezIDs$ENTREZID
+    listOfSelected[[i]] <- EntrezIDs
+    names(listOfSelected)[i] <- names(listOfTables)[i]
+}
+"
+"2","'select()' returned 1:1 mapping between keys and columns
+"
+"2","'select()' returned 1:1 mapping between keys and columns
+"
+"2","'select()' returned 1:1 mapping between keys and columns
+"

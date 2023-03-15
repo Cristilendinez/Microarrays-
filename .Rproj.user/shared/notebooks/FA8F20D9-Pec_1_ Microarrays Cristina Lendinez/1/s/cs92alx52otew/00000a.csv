@@ -1,0 +1,3 @@
+"0","write.csv(exprs(eset_rma), file=""./result/normalized.Data.csv"")"
+"0","write.csv(exprs(eset_filtered), file=""./result//normalized.Filtered.Data.csv"")"
+"0","save(eset_rma, eset_filtered, file=""./result/normalized.Data.Rda"")"

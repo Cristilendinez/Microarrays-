@@ -1,0 +1,48 @@
+"0","library(limma)
+cont.matrix <- makeContrasts (FiltrovsMetformina = Filtro-Metformina,
+                              FiltrovsMetformina_PM_2.5 = Filtro-Metformina_PM_2.5,
+                              MetforminavsMetformina_PM_2.5 = Metformina-Metformina_PM_2.5,
+                              levels=designMat)
+print(cont.matrix)
+"
+"1","                   Contrasts
+"
+"1","Levels             "
+"1"," FiltrovsMetformina"
+"1"," FiltrovsMetformina_PM_2.5"
+"1","
+  Filtro           "
+"1","                  1"
+"1","                         1"
+"1","
+  Metformina       "
+"1","                 -1"
+"1","                         0"
+"1","
+  PM_2.5           "
+"1","                  0"
+"1","                         0"
+"1","
+  Metformina_PM_2.5"
+"1","                  0"
+"1","                        -1"
+"1","
+"
+"1","                   Contrasts
+"
+"1","Levels             "
+"1"," MetforminavsMetformina_PM_2.5"
+"1","
+  Filtro           "
+"1","                             0"
+"1","
+  Metformina       "
+"1","                             1"
+"1","
+  PM_2.5           "
+"1","                             0"
+"1","
+  Metformina_PM_2.5"
+"1","                            -1"
+"1","
+"

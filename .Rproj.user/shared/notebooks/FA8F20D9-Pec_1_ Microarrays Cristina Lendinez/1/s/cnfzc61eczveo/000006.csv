@@ -1,0 +1,6 @@
+"0","topTab_FiltrovsMetformina <- topTable (fit.main, number=nrow(fit.main), coef=""FiltrovsMetformina"", adjust=""fdr"") 
+head(topTab_FiltrovsMetformina)
+"
+"0",""
+"0","topTab_FiltrovsMetformina_PM_2.5 <- topTable (fit.main, number=nrow(fit.main), coef=""FiltrovsMetformina_PM_2.5"", adjust=""fdr"") "
+"0","head(topTab_FiltrovsMetformina_PM_2.5)"

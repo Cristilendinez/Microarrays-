@@ -1,0 +1,759 @@
+---
+title: "Pec1. Microarrays, Cristina Lendinez"
+author: "Cristina Lendinez"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+   html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    theme: cerulean
+    highlight: textmate
+    number_sections: true
+editor_options: 
+  chunk_output_type: console
+# theme args should be one of: "default", "cerulean", "journal", "flatly", "darkly", "readable", "spacelab", "united", "cosmo", "lumen", "paper", "sandstone", "simplex", "yetit
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+
+# Abstract 
+Existe mucha evidencia epidemiológica de que PM2.5 causa enfermedad hepática, y la metformina puede aliviar estas enfermedades; sin embargo, el mecanismo preciso sigue sin estar claro. Nuestro estudio definió los cambios dinámicos de los genes expresados diferencialmente relacionados con enfermedades inducidas por PM2.5, y proporciona base para una comprensión integral del mecanismo a nivel del transcriptoma.
+Investigamos la alteración de la expresión génica inducida por PM2.5 asociada con el desarrollo de daño hepático mediante microarrays en un modelo de ratón ob / ob.
+
+# Objetivos
+
+El objeto del presente análisis es estudiar el impacto de la metformina en ratas con Pm2.5 responsables de la enfermedad hepática. Para ello, se analiza la expresión génica diferencial en ARN extraido de tejido hepático, el ARN total se aisló con TRIzol (Invitrogen) de los órganos del hígado (n = 5 por grupo) en cada momento de acuerdo con las instrucciones del fabricante. El perfil de expresión génica se realizó usando la matriz Affymetrix GeneChip de ratón Genome 430 2.0 de acuerdo con las instrucciones del fabricante (Affymetrix, Inc., Santa Clara, CA). En la matriz GeneChip Mouse Genome 430 2.0, más de 45.000 conjuntos de sondas analizan el nivel de expresión de más de 39.000 transcripciones y variantes de más de 34.000 genes de ratón bien caracterizados, lo que haremos en comparar.Lo que realmente quereos comparar es el comportamiento de la metformina en ratones sin lesion hepatica y ratones con lesión hepática com PM2.5.
+
+# Etapas del Analisis
+El presente estudio analizado está englobado dentro de la investigación primaria clínica de tipo observacional, ya que un conjunto de datos procedentes de un análisis con microarrays son analizados desde una perspectiva estadística y bioinformática.
+En el experimento de microarrays usaron ratones  estos fueron sacrificados después de dos semanas de exposición a PM2.5. El ARN total se aisló con TRIzol (Invitrogen) de los órganos del hígado (n = 5 por grupo) en cada momento de acuerdo con las instrucciones del fabricante. El perfil de expresión génica se realizó usando la matriz Affymetrix GeneChip de ratón Genome 430 2.0 de acuerdo con las instrucciones del fabricante (Affymetrix, Inc., Santa Clara, CA). En la matriz GeneChip Mouse Genome 430 2.0, más de 45.000 conjuntos de sondas analizan el nivel de expresión de más de 39.000 transcripciones y variantes de más de 34.000 genes de ratón bien caracterizados.
+Además, este análisis ha sido realizado siguiendo las pautas descritas en los capítulos estudiados en clase, ciertos recursos encontrados en internet y en el documento generado para el Debate 2 de esta misma asignatura 
+![Protocolo de Analisis de Microarrays.](Figure2.png)
+Los datos y la información de un Affymetrix GeneChip son almacenados en distintos ficheros. En el fichero CEL tenemos la intensidad media de los pixels de la sonda, la desviación estándar así como también información de dónde se sitúa la sonda dentro del array. De esta forma, cada array lleva asociado un fichero CEL. 
+
+Estos valores "crudos" de expresión obtenidos de estos archivos CEL son preprocesados siguiendo el método estudiado en clase, el método RMA (_robust multi-array average_). Este proceso consiste en tres pasos: integración de la correción de fondo, normalización por cuantiles y resumen de los valores del grupo de sondas.
+Además, antes de la selección de genes los valores normalizados pueden ser sometidos a un filtraje no específico que elimina el ruido de fondo y limita los ajustes posteriores a los necesarios.
+
+Una vez los genes han sido seleccionados como diferencialmente expresados son agrupados para buscar patrones comunes de expresión. Para ello se utilizaron mapas de colores o “Heatmaps”, que son herramientas gráficas que muestran agrupaciones jerárquicas de los genes y/o las muestras y la representan mediante una gama de colores determinada que puede cambiarse de color o escalarse de forma personalizada.
+
+Adicionalmente, las listas de genes que han sido diferencialmente expresados son anotadas en diversas bases de datos (como pueden ser _Entrez_ o _Gene Ontology_). Para ello, diversos paquetes disponibles en el proyecto Bioconductor son utilizados (ver ANEXO con los paquetes descargados).
+
+Finalmente, se realiza un análisis de enriquecimiento con la finalidad de contribuir a la interpretación biológica de los resultados. Este tipo de análisis tienen el objetivo de establecer si una determinada categoría aparece con mayor o menor frecuencia en la lista de genes seleccionados que en la población de genes. En caso afirmativo, se indica que la lista de genes se encuentra “enriquecida” en estas funcionalidades.
+
+## Software
+
+El presente análisis o PEC voy a realizarlo en el software estadístico R (https://cran.r-project.org/index.html), utilizándose la última versión disponible 4.1.1. La interacción con R se realiza a partir de la interfaz *RStudio* (https://www.rstudio.com/), también en su última versión (1.4.1106).
+
+El software estadístico R utiliza complementos denominados librerias, los cuales contienen las funciones necesarias para realizar unos análisis concretos. Las librerías necesarías para el presente análisis son las siguientes:
+
+
+```{r libraries, warning=FALSE, message=FALSE, echo = TRUE}
+if (!require(BiocManager)) install.packages("BiocManager")
+
+installifnot <- function (pkg){
+  if (!require(pkg, character.only=T)){
+    BiocManager::install(pkg)
+  }
+}
+installifnot("pd.mogene.1.0.st.v1")
+installifnot("mogene10sttranscriptcluster.db")
+installifnot("oligo")
+installifnot("limma")
+installifnot("Biobase")
+installifnot("arrayQualityMetrics")
+installifnot("genefilter")
+installifnot("annotate")
+installifnot("xtable")
+installifnot("gplots")
+installifnot("GOstats")
+
+```
+
+```{r }
+workingDir <-getwd()
+dataDir <- file.path(workingDir, "data")
+resultsDir <- file.path(workingDir, "results")
+
+```
+
+
+
+# Lectura de los datos
+
+Los datos para el análisis son proporcionados como dos tipos de archivos: los archivos “CEL” y el archivo "targetsAll.csv".
+
+Por un lado, los archivos CEL son los archivos con los "datos sin procesar" que se originan después del escaneo de microarrays y el preprocesamiento con el software Affymetrix (hay uno para cada muestra del experimento). Estos archivos han sido guardados en la carpeta de datos. 
+
+Por otro lado, el archivo "targetsAll.csv" contiene la información sobre grupos y covariables y también es almacenado en la carpeta de datos. Es decir, este archivo relaciona el nombre de cada archivo .CEL con su condición en el experimento. 
+
+En primer lugar, leemos el archivo .csv y crearemos un nuevo conjunto de datos denominado "targets". En el siguiente paso leemos los datos brutos (archivos CEL) y los almacenamos en una variable (denominada rawData). Para ello, cargamos el paquete "oligo" con la biblioteca de funciones. En este paquete están codificadas las funciones para leer los archivos CEL
+
+```{r}
+library(readxl)
+targets_All <- read_excel("data/targets_All.xlsx")
+write.csv(targets_All, file= "target_All.csv", row.names = F)
+targets <- read.csv("./data/target_All.csv", header=TRUE, sep=",")
+library(Biobase)
+#TARGETS
+targetsDF <-read.csv(file=file.path("./data/target_All.csv"), header = TRUE, sep=",") 
+#DEFINE SOME VARIABLES FOR PLOTS
+sampleNames <- as.character(targetsDF$ShortName)
+sampleColor <- as.character(targetsDF$Colors)
+#Ahora pongo la funcion para poder  seleccionar las 16 observaciones
+# Abrimos la librería "Biobase" y seleccionamos las 16 muestras de forma aleatoria
+# utilizando unos numeros cualquiera.
+# La función read.AnnotatedDataFrame nos permite abrir nuestro archivo.csv.
+selectSamples<- function (numero){
+set.seed(numero)
+selected <- c(sample(1:5, 4),sample(6:10,4), sample(11:15, 4), sample(16:20,4))
+selected <- sort(selected)
+}
+mySelected <- selectSamples(123456)
+myTargets <- targetsDF[mySelected,]
+# Creamos un objeto AnnotatedDataFrame
+targets <- AnnotatedDataFrame(myTargets)
+```
+
+
+Al leer los archivos .CEL aportamos la información que contiene el objeto "targets".
+
+```{r }
+
+library(oligo)
+celFiles <- list.celfiles("./data", full.names = TRUE)
+library(Biobase)
+rawData <- read.celfiles(celFiles, phenoData = targets)
+rawData
+
+
+
+```{r }
+library(arrayQualityMetrics)
+#arrayQualityMetrics(rawData)
+
+```
+
+El presente estudio analiza si exite una expresión diferenciada de los genes en los ratones tratados con metformina y no y los ratones con lesion hepatica y tratados con metformina. Para ello, se realiza una selección aleatoria de entre los datos de origen, de tal forma que se seleccionan 16 muestras de 4 condiciones .  
+
+El perfil de expresión génica se realizó usando la matriz Affymetrix GeneChip de ratón Genome 430 2.0 de acuerdo con las instrucciones del fabricante (Affymetrix, Inc., Santa Clara, CA). En la matriz GeneChip Mouse Genome 430 2.0, más de 45.000 conjuntos de sondas analizan el nivel de expresión de más de 39.000 transcripciones y variantes de más de 34.000 genes de ratón bien caracterizados.
+
+## Métodos
+
+La evaluación de los datos se inicia mediante una evaluación de la calidad de los datos, para lo cual se utiliza la libreria *ArrayQualityMetric, a partir de la cual se relizan una serie de evaluaciones que proporcionan una evaluación resumida de la calidad de los datos. Así mismo, se puede ver la calidad de los datos mediante representaciones gráficas como el boxplot o median un análisis de componentes principales (PCA).
+
+```{r QC-PCA-function}
+library(ggplot2)
+library(ggrepel)
+plotPCA3 <- function (datos, labels, factor, title, scale,colores, size = 1.5, glineas = 0.25) {
+    data <- prcomp(t(datos),scale=scale)
+    # plot adjustments
+    dataDf <- data.frame(data$x)
+    Group <- factor
+    loads <- round(data$sdev^2/sum(data$sdev^2)*100,1)
+    # main plot
+    p1 <- ggplot(dataDf,aes(x=PC1, y=PC2)) +
+      theme_classic() +
+      geom_hline(yintercept = 0, color = "gray70") +
+      geom_vline(xintercept = 0, color = "gray70") +
+      geom_point(aes(color = Group), alpha = 0.55, size = 3) +
+      coord_cartesian(xlim = c(min(data$x[,1])-5,max(data$x[,1])+5)) +
+      scale_fill_discrete(name = "Group")
+   # avoiding labels superposition
+    p1 + geom_text_repel(aes(y = PC2 + 0.25, label = labels),segment.size = 0.25, size = size) + 
+      labs(x = c(paste("PC1",loads[1],"%")),y=c(paste("PC2",loads[2],"%"))) +  
+      ggtitle(paste("Principal Component Analysis for: ",title,sep=" "))+ 
+      theme(plot.title = element_text(hjust = 0.5)) +
+      scale_color_manual(values=colores)
+   }
+```
+
+```{r QC-PCA-graph, eval=TRUE}
+plotPCA3(exprs(rawData), labels =myTargets$ShortName, factor = myTargets$grupos, 
+           title="Raw data", scale = FALSE, size = 3, 
+           colores = c("red", "blue", "green", "yellow"))
+```
+
+Visualización de los dos primeros componentes principales para datos brutos
+
+Tenemos en cuenta que hemos definido en la función algunos parámetros para facilitar la visualización.
+
+la etiqueta de las muestras, recuerde que está codificada en la columna ShortName de los objetivos la característica para colorear las muestras, codificada en la columna Grupo en objetivos los colores de cada grupo El primer componente del PCA da cuenta del 42,2% de la variabilidad total de las muestras, y como podemos observar en la gráfica, esta variabilidad es principalmente aportada por la condición de las 4 condiciones, que son filtro(Control, Metformina, P.M2.5, y Metformina con P.M_2.5.
+
+De la misma manera, podemos visualizar fácilmente la distribución de intensidad de las matrices usando diagramas de caja. La figura @ref (fig: BoxplotRaw) muestra una gráfica de caja múltiple que muestra la distribución de las intensidades a lo largo de todas las muestras.
+
+```{r graficosCalidad}
+boxplot(rawData, cex.axis=0.5, las=2,  which="all", 
+           col = c(rep("red", 4), rep("blue", 4), rep("green", 4), rep("yellow",4)),
+           main="Distribution of raw intensity values")
+```
+
+
+
+Diagrama de caja para intensidades de matrices (datos sin procesar)
+
+Se observa una ligera variación de intensidad entre los arreglos, pero esto es lo esperado para los datos brutos, lo siguiente que debemos de hacer es la normalización de los datos.
+
+# Normalización Filtraje y control de calidad
+## Normalización y Filtraje
+
+Antes de comenzar con el análisis de expresión diferencial, es necesario hacer los arreglos comparables entre ellos y tratar de reducir, y si es posible eliminar, toda la variabilidad en las muestras no por razones biológicas El proceso de normalización intenta asegurar que las diferencias de intensidad presente en la matriz, refleja la expresión diferencial de los genes, en lugar de sesgos artificiales debidos a problemas técnicos. El proceso de normalización consta de tres pasos discretos: corrección de fondo, normalización y resumen. El método más utilizado para la normalización de matrices es el análisis robusto de múltiples chips :
+
+```{r normalizacion}
+eset_rma <- rma(rawData)
+```
+
+
+
+Tenemos que comprobar los resultados del análisis de calidad en una carpeta QCDir.Raw creada recientemente dentro de la carpeta de resultados creada anteriormente. Dentro de esta carpeta tenemos que buscar un archivo llamado index.html , que abre una página web desde donde podremos acceder a un resumen del análisis realizado. La imagen de la figura @ref (fig: QCRawDataRes) muestra el encabezado de este archivo que contiene una tabla con tres columnas que indican algunos criterios de calidad que deben ser verificados por matrices de “buena calidad”. En este ejemplo, se han marcado tres muestras una vez. Por lo general, si solo hay una marca, significa que los problemas potenciales son pequeños, por lo que podemos decidir mantener todas las matrices en el análisis.
+
+```{r QC-PCA-normalized, eval=TRUE}
+plotPCA3(exprs(eset_rma), labels = myTargets$ShortName, factor = myTargets$grupos, 
+           title="Normalized data", scale = FALSE, size = 3, 
+           colores = c("red", "blue", "green", "yellow"))
+```
+Visualización de los dos primeros componentes principales para datos normalizados
+
+Ahora el primer componente representa el 22,4% de la variabilidad total. Podemos observar que el porcentaje del PCA 1 normalizado ha disminuido, comparandolo con el PCA1 de los datos sin normalizar. De manera similar al PCA con datos brutos, separa de metformina y PM_2.5(del toxico), hacia la derecha, mientras que las muestras de filtro(control) y mezcla de metformina con toxico PM_2.5. Mientras que si observamos en el PCA Normalizado,los que separa a la derecha es Metformina y Metformina con PM_2.5, y el toxico PM_2.5
+
+La figura @ref (fig: BoxplotNorm) muestra una gráfica de caja múltiple que representa la distribución de las intensidades normalizadas a lo largo de todas las muestras. Vemos que todas las cajas del grafico tienen la misma forma. Esto significa que la normalizacion funciono bien. Esta Normalización  cuenta que RMA incluye un paso (“normalización de cuantiles”) donde la distribución empírica de todas las muestras se establece en los mismos valores. Sabemos que los diagramas de caja son idénticos o al menos muy similares .
+
+```{r QC-boxplot-normalized, eval=TRUE}
+boxplot(eset_rma, cex.axis=0.5, las=2,  which="all", 
+           col = c(rep("red", 3), rep("blue", 3), rep("green", 3), rep("yellow", 3)),
+           main="Boxplot for arrays intensity: Normalized Data")
+```
+
+
+## Detección de lotes
+
+Los resultados de los microarrays de expresión génica pueden verse afectados por multitud de diferencias minúsculas en variables no biológicas, como por ejemplo reactivos de diferentes lotes, diferentes técnicos  o investigadores, la fecha de procesamiento diferente de las muestras del mismo experimento. El error acumulativo introducido por estas variaciones experimentales dependientes del tiempo y el lugar se denomina “efectos de lote”. Se han desarrollado diferentes enfoques para identificar y eliminar los efectos por lotes de los datos de microarrays, como el análisis de variables sustitutas, el análisis de componentes de variación principal y de combate (PVCA).
+
+Aquí usaremos el último, Análisis del componente de la variación principal, que estima la fuente y la proporción de la variación en dos pasos, el análisis del componente principal y el análisis del componente de la varianza. Todas las muestras se procesaron el mismo día (esto se puede ver usando la función get.celfile.dates()del paquete affyio), por lo que no es necesario considerar un factor de lote típico, como la “Fecha de procesamiento” .
+
+```{r}
+#load the library
+library(pvca)
+pData(eset_rma) <- myTargets
+#select the threshold
+pct_threshold <- 0.6
+#select the factors to analyze
+batch.factors <- c("grupos", "Colors")
+#run the analysis
+pvcaObj <- pvcaBatchAssess (eset_rma, batch.factors, pct_threshold)
+```
+La figura @ref (fig: plotPVCA) muestra un diagrama de barras con una barra por cada fuente de variación incluida en el análisis. Su tamaño relativo indica el porcentaje de variabilidad atribuible a cada fuente. El gráfico muestra que la principal fuente de variación en las muestras es la condición de resid.
+
+Tenga en cuenta que la temperatura no es un factor de lote. Es un factor experimental que se incluyó en el diseño experimental.
+
+```{r}
+#plot the results
+bp <- barplot(pvcaObj$dat, xlab = "Effects",
+    ylab = "Weighted average proportion variance",
+    ylim= c(0,1.1),col = c("mediumorchid"), las=2,
+    main="PVCA estimation")
+axis(1, at = bp, labels = pvcaObj$label, cex.axis = 0.75, las=2)
+values = pvcaObj$dat
+new_values = round(values , 3)
+text(bp,pvcaObj$dat,labels = new_values, pos=3, cex = 0.7)
+```
+
+
+
+# Detección de la mayoría de genes variables
+
+La selección de genes expresadosdiferencialmente se ve afectada por el número de genes en los que la producimos. Cuanto mas genes miremos o busquemos, mayor será el ajuste necesario de los p-valores (como veremos a continuacion), lo que nos llevará a acabar perdiendo más genes.
+Si un gen su nivel de expresion es superior o inferior entre los otros genes, por ello la varianza general del gen puede ser mayor que la de los otros genes, deberemos trazar  la variabilidad que se pudieran atribuir.El gráfico muestra que los genes más variables son aquellos con una desviación estándar por encima del 90-95% de todas las desviaciones estándar.
+
+
+```{r}
+sds <- apply (exprs(eset_rma), 1, sd)
+sdsO<- sort(sds)
+plot(1:length(sdsO), sdsO, main="Distribution of variability for all genes",
+       sub="Vertical lines represent 90% and 95% percentiles",
+       xlab="Gene index (from least to most variable)", ylab="Standard deviation")
+abline(v=length(sds)*c(0.9,0.95))
+```
+
+alores de desviaciones estándar en todas las muestras para todos los genes ordenados de menor a mayor
+
+# Filtradono especifico
+
+A continuación, filtramos aquellos genes cuya variabilidad puede atribuirse a una variación aleatoria, es decir, aquellos genes de los cuales no se espera que se expresen diferencialmente. Esta técnica ha demostrado ser útil para reducir el número de pruebas a realizar con el correspondiente aumento de potencia .
+
+La función "nsFilter" devuelve los valores filtrados en un objeto expressionSet y nos proporciona un informe de los resultados del filtraje (vemos codigo)
+De esta forma encontramos: 
+$numDupsRemoved
+[1] 140
+
+$numLowVar
+[1] 15058
+
+$numRemoved.ENTREZID
+[1] 8911
+
+Ahora podemos ver el codigo con el resultado.
+
+```{r}
+#BiocManager :: install ("mogene21sttranscriptcluster.db")
+library(org.Mm.eg.db)
+library(AnnotationDbi)
+library(genefilter)
+library(mogene21sttranscriptcluster.db)
+```
+
+```{r}
+library(genefilter)
+library(clariomsmousetranscriptcluster.db)
+annotation(eset_rma) <- "clariomsmousetranscriptcluster.db"
+filtered <- nsFilter(eset_rma, 
+                      require.entrez = TRUE, remove.dupEntrez = TRUE,
+                      var.filter=TRUE, var.func=IQR, var.cutoff=0.75, 
+                      filterByQuantile=TRUE, feature.exclude = "^AFFX")
+```
+
+La función nsFilterdevuelve los valores filtrados y un informe de los resultados del filtrado.
+
+```{r}
+print(filtered$filter.log)
+```
+
+```{r}
+eset_filtered <-filtered$eset
+```
+
+Los datos filtrados normalizados es bueno que los guardemos por si queremos hacer análisis adicionales, pero es posible que los necesitemos para , por ejemplo, para revisar valores específicos de expresión génica. Guardare los datos por si los necesitamos en formato csv y Rda.
+
+```{r}
+write.csv(exprs(eset_rma), file="./result/normalized.Data.csv")
+write.csv(exprs(eset_filtered), file="./result//normalized.Filtered.Data.csv")
+save(eset_rma, eset_filtered, file="./result/normalized.Data.Rda")
+```
+
+# Identificación de genes diferencialmente expresados
+## Diseño de Matriz y Comparaciones
+
+El primer paso para el análisis basado en modelos lineales es crear la matriz de diseño. Básicamente creamos una tabla que describe la asignación de cada muestra a un grupo o condición experimental. 
+
+La matriz de diseño se puede definir manualmente o a partir de una variable de factor que se haya introducido en el archivo de “grupos” con este fin creado específicamente para ella. En este estudio, la variable "grupos" representa el experimento que puede ser **"Filtro", "Metformina", "PM_2.5", "Metformina_PM_2.5"**.
+
+```{r}
+if (!exists("eset_filtered")) load(file="/normalized.Data.Rda")
+```
+
+```{r}
+library(limma)
+designMat<- model.matrix(~0+grupos, pData(eset_filtered))
+colnames(designMat) <- c("Filtro", "Metformina", "PM_2.5", "Metformina_PM_2.5")
+print(designMat)
+```
+
+
+
+##  Definición de comparaciones con la matriz de contrastes
+
+Además, la matriz de contrastes se utiliza para describir las comparaciones entre grupos. Consta de tantas columnas como comparaciones y tantas filas como grupos (es decir, como columnas de la matriz de diseño). Una comparación entre grupos, denominada "contraste", se representa con un "1" y un "-1" en las filas de grupos a comparar y ceros en el resto. Si varios grupos intervinieran en la comparación tendría tantos coeficientes como grupos con la única restricción de que su suma sería cero.
+
+
+```{r}
+# Definición de la matriz de contraste
+library(limma)
+cont.matrix <- makeContrasts (FiltrovsMetformina = Filtro-Metformina,
+                              FiltrovsMetformina_PM_2.5 = Filtro-Metformina_PM_2.5,
+                              MetforminavsMetformina_PM_2.5 = Metformina-Metformina_PM_2.5,
+                              levels=designMat)
+print(cont.matrix)
+                              
+
+```
+## Estimación del modelo y selección de genes
+
+Una vez definida la matriz de diseño y los contrastes, podemos proceder a estimar el modelo, estimar los contrastes y realizar las pruebas de significancia que conducirán a la decisión, para cada gen y cada comparación, si se pueden considerar expresados diferencialmente.
+
+El análisis proporciona las estadísticas de prueba habituales, como valores de p ajustados o moderados por t de cambio de pliegues que se utilizan para ordenar los genes de más, a menos que se expresen de forma diferencial.
+
+
+Toda la información relevante para una mayor exploración de los resultados se almacena en un objeto R de clase MArrayLMdefinido en el limmapaquete. Aquí se nombra como fit.main.
+
+```{r}
+
+# Estimación del modelo y selección de genes
+
+
+library(limma)
+fit<-lmFit(eset_filtered, designMat)
+fit.main<-contrasts.fit(fit, cont.matrix)
+fit.main<-eBayes(fit.main)
+class(fit.main)
+
+```
+
+## Lista de genes diferencialmente expresados
+El paquete limma implementa la función topTable que contiene, para un contraste dado, una lista de genes ordenados de menor a mayor valor p, que puede considerarse que se expresa de mayor a menor diferencial. Para cada gen se proporcionan las siguientes estadísticas:
+
+- logFC: Diferencia media entre grupos.
+
+- AveExpr: expresión media de todos los genes en la comparación.
+
+- t: Estadístico t moderado (estadístico similar a la prueba t para la comparación).
+
+- P.Value: _p-valor_ de la prueba.
+
+- Adj.P.Val: _p-valor_ ajustado.
+
+- B: Estadístico B, que se trata de un logaritmo de las probabilidades del gen de ser expresado diferencialmente frente a no serlo.
+Podemos ver el resultado obtenido con el codigo.
+
+```{r}
+
+# Listas de genes diferencialmente expresados
+
+
+topTab_FiltrovsMetformina <- topTable (fit.main, number=nrow(fit.main), coef="FiltrovsMetformina", adjust="fdr") 
+head(topTab_FiltrovsMetformina)
+
+topTab_FiltrovsMetformina_PM_2.5 <- topTable (fit.main, number=nrow(fit.main), coef="FiltrovsMetformina_PM_2.5", adjust="fdr") 
+head(topTab_FiltrovsMetformina_PM_2.5)
+
+topTab_MetforminavsMetformina_PM_2.5 <- topTable (fit.main, number=nrow(fit.main), coef="MetforminavsMetformina_PM_2.5", adjust="fdr") 
+head(topTab_MetforminavsMetformina_PM_2.5)
+
+```
+## Anotación de genes
+En el proceso denominado "anotación", brindamos información adicional sobre las características que se han seleccionado y se busca información para asociar identificadores como pueden ser SYMBOL, ENTREZ o la descripción del nombre en GENENAME
+Podemos ver el resultado en el codigo,
+
+```{r}
+
+#  Anotación de genes
+
+
+annotatedTopTable <- function(topTab, anotPackage)
+ {
+  topTab <- cbind(PROBEID=rownames(topTab), topTab)
+  myProbes <- rownames(topTab)
+  thePackage <- eval(parse(text = anotPackage))
+  geneAnots <- select(thePackage, myProbes, c("SYMBOL", "ENTREZID", "GENENAME"))
+  annotatedTopTab<- merge(x=geneAnots, y=topTab, by.x="PROBEID", by.y="PROBEID")
+ return(annotatedTopTab)
+ }
+
+topAnnotated_FiltrovsMetformina<- annotatedTopTable(topTab_FiltrovsMetformina, anotPackage="clariomsmousetranscriptcluster.db")
+topAnnotated_FiltrovsMetformina_PM_2.5 <- annotatedTopTable(topTab_FiltrovsMetformina_PM_2.5,anotPackage="clariomsmousetranscriptcluster.db")
+topAnnotated_MetforminavsMetformina_PM_2.5 <- annotatedTopTable(topTab_MetforminavsMetformina_PM_2.5, anotPackage="clariomsmousetranscriptcluster.db")
+write.csv(topAnnotated_FiltrovsMetformina, file="./result/topAnnotated_FiltrovsMetformina.csv")
+write.csv(topAnnotated_FiltrovsMetformina_PM_2.5, file="./result/topAnnotated_FiltrovsMetformina_PM_2.5.csv")
+write.csv(topAnnotated_MetforminavsMetformina_PM_2.5,file="./result/topAnnotated_MetforminavsMetformina_PM_2.5.csv")
+```
+**Gráficos de volcán (VOLCANO-PLOTS)**
+
+Los gráficos tipo volcano-plot permiten visualizar la expresión diferencial general. Estos gráficos muestran si hay muchos o pocos genes expresados de manera significativa o si este número es bajo. En el eje X representan los cambios de expresión en escala logarítmica (“efecto biológico”) y en el eje Y representan el -log del _p-valor_ o alternativamente el estadístico B
+Podemos ver el resultado, aunque un poco más adelante, usare este mismo grafico , para comparar entre las diferencias de las 4 categorias que tengo,
+
+```{r}
+
+# Gráficos de volcán (VOLCANO-PLOTS)
+
+
+library(clariomsmousetranscriptcluster.db)
+geneSymbols <- select(clariomsmousetranscriptcluster.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=1, highlight=4, names=SYMBOLS, 
+            main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[1], sep="\n"),  xlim=c(-5,5)) 
+abline(v=c(-1,1))
+```
+
+
+##  Comparación entre distintas comparaciones
+
+A continuación, seleccionamos genes en varias comparaciones. A veces, los genes biológicamente relevantes serán aquellos que se seleccionen en uno de ellos pero no en otros. En otras ocasiones el interés estará en genes que se seleccionen en todas las comparaciones.
+
+Mediante las funciones "decideTests" y "VennDiagram" del paquete "limma" podemos anotar y contar los genes seleccionados en cada comparación (Ver codigo, todo el codigo esta seguido del texto. a mi me resulta más claro hacerlo asi).
+
+
+
+```{r}
+
+# Comparación entre distintas comparaciones
+
+
+library(limma)
+res<-decideTests(fit.main, method="separate", adjust.method="fdr", p.value=0.1, lfc=1)
+
+sum.res.rows<-apply(abs(res),1,sum)
+res.selected<-res[sum.res.rows!=0,] 
+print(summary(res))
+```
+
+##  Anotación de resultados
+
+Mediante un diagrama de Venn podemos visualizar mejor nuestros resultados. La figura (figura X) muestra un diagrama de Venn con el número de genes que han sido expresados diferencialmente en cada comparación con un límite dado (aquí el límite ha sido definido por “FDR <0.1” y “logFC> 1”.
+
+En el codigo y el grafico, sobre todo podemos  observamos representados el número de genes en común por comparaciones. 17 entre las comparaciones de **FiltrovsMetformina**, **FiltrovsMetformina_P:M_2.5** 0 con la comparación de  **MetforminavsMetformina_P:M_2.5** .
+
+```{r}
+
+# Anotación de resultados - Diagrama de Venn
+
+
+vennDiagram (res.selected[,1:3], cex=0.9)
+title("Genes en común entre las tres comparaciones\n Genes seleccionados con un FDR < 0.05 y logFC > 1")
+```
+
+Aqui hago el mismo proceso anterior, pero hago las condiciones por separado, asi podre observar que genes estan fuera de rango o desviados.
+
+```{r}
+geneSymbols <- select(clariomsmousetranscriptcluster.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=1, highlight=4, names=SYMBOLS, 
+             main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[1], sep="\n"))
+   abline(v=c(-1,1))
+```
+
+
+```{r}
+geneSymbols <- select(clariomsmousetranscriptcluster.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=2, highlight=4, names=SYMBOLS, 
+             main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[2], sep="\n"))
+   abline(v=c(-1,1))
+   
+```
+
+
+```{r}
+
+# Volcano plot 
+
+
+geneSymbols <- select(clariomsmousetranscriptcluster.db, rownames(fit.main), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+volcanoplot(fit.main, coef=3, highlight=6, names=SYMBOLS, 
+             main=paste("Genes expresados diferencialmente", colnames(cont.matrix)[3], sep="\n"))
+   abline(v=c(-1,1))
+```
+
+## Análisis de significación biológica
+
+###  Análisis de enriquecimiento (“Gene Enrichment Analysis”)
+
+La finalidad principal del análisis de significación biológica es establecer si dada una lista de genes seleccionados por estar diferencialmente expresados entre dos condiciones, las funciones y procesos biológicos aparecen en esta lista con mayor frecuencia que entre el resto de genes analizados.
+
+**PERFILES DE EXPRESIÓN**
+
+Posteriormente a la selección de los genes que están diferencialmente expresados, pueden visualizarse las expresiones de cada gen de forma agrupada para destacar aquellos genes que se encuentran arriba o abajo. Estos constituyen lo que se denomina perfiles de expresión.
+
+**MAPAS DE COLORES**
+
+Una forma de visualización de estos genes es utilizando mapas de colores (Heatmap). Estos gráficos utilizan paletas de colores para resaltar valores distintos. Mediante la función "heatmap.2" del paquete "gplots" pueden verse sofisticados mapas de color
+
+```{r}
+
+# Contar cuantos genes se han diferenciado: negativa y positivamente
+
+
+res<-decideTests(fit.main, method="separate", adjust.method="fdr", p.value=0.1, lfc=1)
+
+sum.res.rows <- apply(abs(res), 1, sum)
+res.selected <- res[sum.res.rows != 0,]
+
+```
+
+```{r}
+
+# Diagrama de Venn para visualizar los genes diferenciados
+
+
+vennDiagram (res.selected[,1:3], cex=0.9, main=paste("Genes expresados diferencialmente"))
+```
+
+```{r}
+
+# Clustered heatmap
+
+
+probesInHeatmap <- rownames(res.selected)
+HMdata <- exprs(eset_filtered)[rownames(exprs(eset_filtered)) %in% probesInHeatmap,]
+geneSymbols <- select(clariomsmousetranscriptcluster.db, rownames(HMdata), c("SYMBOL"))
+SYMBOLS<- geneSymbols$SYMBOL
+rownames(HMdata) <- SYMBOLS
+write.csv(HMdata, file = file.path("./result/data4Heatmap.csv"))
+my_palette <- colorRampPalette(c("blue", "red"))(n = 299)
+library(gplots)
+heatmap.2(HMdata,
+            Rowv = FALSE,
+            Colv = FALSE,
+            main = "Differentially expressed genes \n FDR < 0,1, logFC >=1",
+            scale = "row",
+            col = my_palette,
+            sepcolor = "white",
+            sepwidth = c(0.05,0.05),
+            cexRow = 0.5,
+            cexCol = 0.9,
+            key = TRUE,
+            keysize = 1.5,
+            density.info = "histogram",
+            ColSideColors = c(rep("red",4),rep("blue",4), rep("green",4), rep("yellow",4)),
+            tracecol = NULL,
+            dendrogram = "none",
+            srtCol = 30)
+```
+
+```{r}
+heatmap.2(HMdata,
+            Rowv = TRUE,
+            Colv = TRUE,
+            dendrogram = "both",
+            main = "Differentially expressed genes \n FDR < 0,1, logFC >=1",
+            scale = "row",
+            col = my_palette,
+            sepcolor = "white",
+            sepwidth = c(0.05,0.05),
+            cexRow = 0.5,
+            cexCol = 0.9,
+            key = TRUE,
+            keysize = 1.5,
+            density.info = "histogram",
+            ColSideColors = c(rep("red",4),rep("blue",4), rep("green",4), rep("yellow",4)),
+            tracecol = NULL,
+            srtCol = 30)
+```
+
+# Importancia biológica de los resultados
+
+Una vez que se ha obtenido una lista de genes que caracterizan la diferencia entre dos condiciones, hay que interpretarla. Aunque esto requiere, por supuesto, una buena comprensión del problema biológico subyacente, un enfoque estadístico conocido como “análisis de conjuntos de genes” puede ser útil para sugerir ideas para la interpretación.
+
+Con este objetivo este tipo de análisis buscan establecer si, dada una lista de genes seleccionados por ser expresados ​​diferencialmente entre dos condiciones, las funciones, procesos biológicos o vías moleculares que los caracterizan aparecen en esta lista con mayor frecuencia que entre el resto de genes. analizado.
+
+Hay muchas variantes de estos tipos de análisis, ver Khatri, Sirota y Butte ( 2012 ) , pero aquí usaremos el análisis de enriquecimiento básico como se describe en implementado en el ReactomePApaquete Bioconductor. El análisis se realiza en la base de datos de anotaciones ReactomePA https://reactome.org/ .
+
+Los análisis de este tipo necesitan un número mínimo de genes para ser fiables, preferiblemente unos cientos que unas pocas docenas, por lo que es habitual realizar una selección menos restrictiva que con los pasos anteriores. Por ejemplo, una opción es incluir todos los genes con un límite de FDR no estricto, como FDR <0,15 sin filtrar por un “cambio de pliegue” mínimo).
+
+Como primer paso preparamos la lista de listas de genes que serán analizados
+
+```{r}
+
+listOfSelected <- list()
+     listOfTables <- list(FiltrovsMetformina = topTab_FiltrovsMetformina, 
+                     FiltrovsMetformina_PM_2.5= topTab_FiltrovsMetformina_PM_2.5,
+                      MetforminavsMetformina_PM_2.5= topTab_MetforminavsMetformina_PM_2.5)
+listOfSelected <- list()
+for (i in 1:length(listOfTables)){
+    # select the toptable
+    topTab <- listOfTables[[i]]
+    # select the genes to be included in the analysis
+    whichGenes<-topTab["adj.P.Val"]<0.15
+    selectedIDs <- rownames(topTab)[whichGenes]
+    # convert the ID to Entrez
+    EntrezIDs<- select(clariomsmousetranscriptcluster.db, selectedIDs, c("ENTREZID"))
+    EntrezIDs <- EntrezIDs$ENTREZID
+    listOfSelected[[i]] <- EntrezIDs
+    names(listOfSelected)[i] <- names(listOfTables)[i]
+}
+
+```
+
+```{r}
+sapply(listOfSelected, length)
+```
+
+El análisis también requiere tener los identificadores de Entrez para todos los genes analizados. Es una discusión abierta si lo que se debe usar es “todos los genes analizados”, es decir, los genes que se han retenido en el análisis y son parte de la “tabla superior”, o todos los genes disponibles. En este caso usamos la segunda opción y definimos nuestro universo como todos los genes que tienen al menos una anotación en la Ontología de genes.
+
+```{r}
+mapped_genes2GO <- mappedkeys(org.Mm.egGO)
+mapped_genes2KEGG <- mappedkeys(org.Mm.egPATH)
+mapped_genes <- union(mapped_genes2GO , mapped_genes2KEGG)
+```
+
+
+```{r}
+library(ReactomePA)
+```
+
+```{r}
+listOfData <- listOfSelected[1:2]
+comparisonsNames <- names(listOfData)
+universe <- mapped_genes
+ 
+for (i in 1:length(listOfData)){
+    genesIn <- listOfData[[i]]
+    comparison <- comparisonsNames[i]
+    enrich.result <- enrichPathway(gene = genesIn,
+                                   pvalueCutoff = 0.05,
+                                   readable = T,
+                                   pAdjustMethod = "BH",
+                                   organism = "mouse",
+                                   universe = universe)
+    
+cat("##################################")
+cat("\nComparison: ", comparison,"\n")
+print(head(enrich.result))
+
+if (length(rownames(enrich.result@result)) != 0) {
+write.csv(as.data.frame(enrich.result), 
+               file =paste0("./result/","ReactomePA.Results.",comparison,".csv"), 
+               row.names = FALSE)
+    pdf(file=paste0("./result/","ReactomePABarplot.",comparison,".pdf")) 
+    print(barplot(enrich.result, showCategory = 15, font.size = 4, 
+              title = paste0("Reactome Pathway Analysis for ", comparison,". Barplot")))
+    dev.off()
+    
+    pdf(file = paste0("./result/","ReactomePAcnetplot.",comparison,".pdf"))
+      print(cnetplot(enrich.result, categorySize = "geneNum", schowCategory = 15,  
+                     vertex.label.cex = 0.75))
+    dev.off()
+   }
+}
+```
+Los resultados obtenidos en el análisis de importancia biológica son:
+
+un archivo .csv con un resumen de todas las rutas enriquecidas y las estadísticas asociadas. un diagrama de barras con los mejores caminos enriquecidos. La altura del gráfico de barras es el número de genes de nuestro análisis relacionados con esa vía. Además, las vías están ordenadas por significancia estadística. un diagrama con una red de las vías enriquecidas y la relación entre los genes incluidos. La figura @ref (fig: network) muestra la red producida a partir de los genes seleccionados en la comparación “KO y WT en RT”
+
+```{r}
+cnetplot(enrich.result, categorySize = "geneNum", schowCategory = 15, 
+           vertex.label.cex = 0.75)
+```
+#  Discusión
+
+En primer lugar, se realizaron diversos controles de calidad que han permatido mostrar que los datos con los que se ha trabajado eran de una calidad buena o suficiente. A pesar de presentar una cierta heterogeneidad, la normalización con el método RMA nos ha permitido, dentro de lo que cabe, homogeneizarlos. Además, mediante la normalización y la filtración hemos detectado un cierto número de genes diferencialmente expresados que podrían ser usados en otros estudios.
+
+Podríamos decir que el presente estudio muestra un análisis estándar de microarrays de ADN,  podrían haber errores de correspondencia de genes en una ruta metabólica determinada que no fuese la suya.
+
+Otros problemas que nos podríamos encontrar en el presente análisis podrían ser relativos al tamaño limitado de las muestras (más aún escogiendo 16 de las 20 originales, son dos muestras y aunque el error seria pequeño podriamos encontrar  en algunos falsos negativos. Finalmente, las decisiones podrían ser un poco arbitrarias en la elección de los métodos a seguir y las especificaciones debido a un desconocimiento previo de la materia.
+
+#  Conclusión
+
+Este análisis me ha  permitido aplicar aquello aprendido en clase, así como también profundizar en la materia. 
+
+Pese al uso de este tipo de microarrays de ADN y el presente análisis, se deberá tener en cuenta que si un gen es considerado expresado diferencialmente, se deberá recurrir a otras técnicas para corroborar esta hipótesis. 
+
+Finalmente, siempre será importante incorporar conocimiento biológico con la finalidad de minimizar una obtención de resultados no ajustados a la realidad biológica.
+
+# Bibliografia
+
+-[Saura Martínez, LR Influencia de la dieta en el riesgo de recidivas de cáncer de mama subtipo HER2 +. Abordajenutriciona](https://pubmed.ncbi.nlm.nih.gov/24957076/)
+-[Guo, J., Zhou, Y., Cheng, Y., Fang, W., Hu, G., Wei, J., ... y Li, J. (2018). Cambios inducidos por metformina del transcriptoma codificante y ARN no codificantes en el hígado de ratones con enfermedad del hígado graso no alcohólico. Fisiología celular y bioquímica , 45 (4), 1487-1505.](https://pubmed.ncbi.nlm.nih.gov/29466788/)
+
+-[Galarce Sosa, IE (2020). Análisis de cambios en la expresión de reguladores de m6A en los subtipos moleculares de cáncer de mama y su relación con la supervivencia](https://www.colibri.udelar.edu.uy/jspui/bitstream/20.500.12008/29527/1/uy24-20010.pdf)
+
+-[Sun, Z., Liu, Y., Yu, F., Xu, Y., Yanli, L. y Liu, N. (2019). Análisis largo del perfil de ARN y ARNm no codificante de metformina para revertir la remodelación vascular de la hipertensión pulmonar inducida por monocrotalina. Biomedicina y farmacoterapia , 115 , 108933.](https://pubmed.ncbi.nlm.nih.gov/31060005/)
